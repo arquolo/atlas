@@ -1,41 +1,40 @@
-#ifndef _VSIImage
-#define _VSIImage
+#pragma once
 
 #include <vector>
-#include "MultiResolutionImage.h"
-#include "multiresolutionimageinterface_export.h"
 
-class EXPORT VSIImage : public MultiResolutionImage {
+#include "image.h"
 
-public:
-  VSIImage();
-  ~VSIImage();
+namespace gs {
 
-  bool initializeType(const std::string& imagePath);
+class VSIImage : public Image {
+	std::string vsi_filename_;
+	std::string ets_file_;
+	std::vector<size_t> tile_offsets_;
+	std::vector<std::vector<size_t>> tile_coords_;
+    size_t tile_size_y_;
+    size_t tile_size_x_;
+    size_t tile_count_y_;
+    size_t tile_count_x_;
+
+    size_t compression_type_;
+
+    char* decode_tile(int no, int row, int col) const;
+    size_t parse_ets_file(std::ifstream& ets);
 
 protected :
+    void cleanup();
 
-  void cleanup();
+    template <typename T>
+    std::vector<T> read_impl(
+        size_t y, size_t x, size_t height, size_t width, size_t level);
 
-  void* readDataFromImage(const long long& startX, const long long& startY, const unsigned long long& width,
-    const unsigned long long& height, const unsigned int& level);
+    double min_(int channel = -1) const { return 0.; }
+    double max_(int channel = -1) const { return 255.; }
 
-  double getMinValue(int channel = -1) { return 0.; }
-  double getMaxValue(int channel = -1) { return 255.; }
+public:
+    VSIImage(const std::string& filename);
+    ~VSIImage();
 
-private :
-	std::string _vsiFileName;
-	std::string _etsFile;
-	std::vector<unsigned long long> _tileOffsets;
-	std::vector<std::vector<int> > _tileCoords;
-	unsigned int _tileSizeX;
-	unsigned int _tileSizeY;
-	unsigned int _nrTilesX;
-	unsigned int _nrTilesY;
-  unsigned int _compressionType;
-
-  char* decodeTile(int no, int row, int col) const;
-  unsigned long long parseETSFile(std::ifstream& ets);
 };
 
-#endif
+} // namespace gs

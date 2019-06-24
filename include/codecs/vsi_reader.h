@@ -1,42 +1,31 @@
-//---------------------------------------------------------------------------
-#ifndef _VSIImageReader
-#define _VSIImageReader
+#pragma once
+
 #include <string>
 #include <vector>
 #include <map>
-#include "config/enums_config.h"
 
-class EXPORT_MULTIRESOLUTIONIMAGEINTERFACE VSIImageReader {
+#include "enums.h"
 
+namespace gs {
+
+class VSIImageReader {
 public:
+    VSIImageReader(const std::string& filename);
+    ~VSIImageReader();
 
-  VSIImageReader();
-  ~VSIImageReader();
+    //! Gets the dimensions of the base level of the pyramid
+    const std::vector<size_t>& dims() const;
 
-  //! Opens the slide file and keeps a reference to it
-  void open(const std::string& fileName);
+    //! Gets and sets the pixel size
+    float pixel_size_x() { return pixel_size_x_; }
+    float pixel_size_y() { return pixel_size_y_; }
+    void pixel_size_x(float value) { pixel_size_x_ = value; }
+    void pixel_size_y(float value) { pixel_size_y_ = value; }
 
-  //! Closes the open file and clears the reference
-  void close();
-
-  //! Checks whether the instance has an open file
-  const bool isOpen() const;
-
-  //! Gets the dimensions of the base level of the pyramid
-  const std::vector<unsigned long long> getDimensions() const;
-
-  //! Gets and sets the pixel size
-  float getPixelSizeX() {return _pixelSizeX;}
-  float getPixelSizeY() {return _pixelSizeY;}
-  void setPixelSizeX(float pixelSizeX) {_pixelSizeX = pixelSizeX;}
-  void setPixelSizeY(float pixelSizeY) {_pixelSizeY = pixelSizeY;}
-
-
-  //! Obtains pixel data for a requested region as int8 array. The user is responsible for allocating
-  //! enough memory for the data to fit the array and clearing the memory
-  void readRegion(const unsigned long long& startX, const unsigned long long& startY, const unsigned long long& width,
-  const unsigned long long& height, unsigned char* data) const;
+    //! Obtains pixel data for a requested region as int8 array
+    std::vector<uint8_t> read_impl(
+        size_t y, size_t x, size_t height, size_t width, size_t level);
 
 };
 
-#endif
+} // namespace gs

@@ -1,42 +1,89 @@
 #include <pybind11/pybind11.h>
 
-#include <image_base.h>
+#include "codec.h"
+#include "codec_tiff.h"
+#include "utility.h"
 
+using namespace al;
 namespace py = pybind11;
 
-PYBIND11_MODULE(gigaslide, m) {
-    py::enum_<enums::Color>(m, "Color")
-        .value("Invalid", enums::Color::Invalid)
-        .value("Monochrome", enums::Color::Monochrome)
-        .value("RGB", enums::Color::RGB)
-        .value("ARGB", enums::Color::ARGB)
-        .value("Indexed", enums::Color::Indexed);
+struct Image {
+    std::unique_ptr<_Codec> codec;
 
-    py::enum_<enums::Data>(m, "Data")
-        .value("Invalid", enums::Data::Invalid)
-        .value("UInt8", enums::Data::UInt8)
-        .value("UInt16", enums::Data::UInt16)
-        .value("UInt32", enums::Data::UInt32)
-        .value("Float", enums::Data::Float);
+    Image(const std::string& path): codec{
+        [path = Path{path}]() {
+            auto ext = path.extension();
+            if (ext == ".tif" || ext == ".tiff")
+                return std::make_unique<codec::tiff::Tiff>(path);
+            throw py::type_error{"Unsupported extension"};
+        }()
+    } {}
 
-    py::enum_<enums::Codec>(m, "Codec")
-        .value("RAW", enums::Codec::RAW)
-        .value("JPEG", enums::Codec::JPEG)
-        .value("LZW", enums::Codec::LZW)
-        .value("JPEG2000", enums::Codec::JPEG2000);
+    Buffer getitem(std::tuple<py::slice, py::slice> slices) const;
 
-    py::enum_<enums::Interpolation>(m, "Interpolation")
-        .value("Nearest", enums::Interpolation::Nearest)
-        .value("Linear", enums::Interpolation::Linear);
+    auto shape() const {
+        const auto& s = codec->shape();
+        return std::make_tuple(s[0], s[1], codec->samples);
+    }
+};
 
-    py::class_<gs::ImageBase>(m, "ImageBase")
-        .def(py::init<>())
+Buffer Image::getitem(std::tuple<py::slice, py::slice> slices) const {
+    const auto& [ys, xs] = slices;
+
+    auto y_min = ys.attr("start");
+    auto x_min = xs.attr("start");
+    auto y_max = ys.attr("stop");
+    auto x_max = xs.attr("stop");
+    auto y_step_ = ys.attr("step");
+    auto x_step_ = xs.attr("step");
+
+    size_t y_step = (!y_step_.is_none()) ? y_step_.cast<size_t>() : 1;
+    size_t x_step = (!x_step_.is_none()) ? x_step_.cast<size_t>() : 1;
+    if (y_step != x_step)
+        throw std::runtime_error{"Y and X steps must be equal"};
+
+    auto [level, scale] = codec->level_for(y_step);
+
+    return codec->read({
+        {(!y_min.is_none() ? y_min.cast<size_t>() / scale : 0),
+         (!x_min.is_none() ? x_min.cast<size_t>() / scale : 0)},
+        {(!y_max.is_none() ? y_max.cast<size_t>() / scale : codec->shape(level)[0]),
+         (!x_max.is_none() ? x_max.cast<size_t>() / scale : codec->shape(level)[1])},
+        level
+    });
+}
+
+namespace {
+template <typename T>
+struct numpy_dtype {
+    static constexpr py::dtype visit() noexcept { return py::dtype::of<T>(); }
+};
+}
+
+PYBIND11_MODULE(atlas, m) {
+    py::enum_<Color>(m, "Color")
+        .value("Invalid", Color::Invalid)
+        .value("Indexed", Color::Indexed)
+        .value("Monochrome", Color::Monochrome)
+        .value("RGB", Color::RGB)
+        .value("ARGB", Color::ARGB);
+
+    py::enum_<Bitstream>(m, "Bitstream")
+        .value("RAW", Bitstream::RAW)
+        .value("LZW", Bitstream::LZW)
+        .value("JPEG", Bitstream::JPEG)
+        .value("JPEG2000", Bitstream::JPEG2000);
+
+    py::enum_<Interpolation>(m, "Interpolation")
+        .value("Nearest", Interpolation::Nearest)
+        .value("Linear", Interpolation::Linear);
+
+    py::class_<Image>(m, "Image")
+        .def(py::init<const std::string&>(), py::arg("path"))
+        .def("__getitem__", &Image::getitem, py::arg("slices"))
+        .def_property_readonly("shape", &Image::shape, "Shape")
         .def_property_readonly(
-            "samples_per_pixel", &gs::ImageBase::samples_per_pixel)
-        .def_property_readonly(
-            "spacing", &gs::ImageBase::spacing)
-        .def_property_readonly(
-            "color", &gs::ImageBase::color)
-        .def_property_readonly(
-            "dtype", &gs::ImageBase::dtype);
+            "dtype",
+            [](const Image& self) { return typed<numpy_dtype>(self.codec->dtype()); },
+            "Data type");
 }

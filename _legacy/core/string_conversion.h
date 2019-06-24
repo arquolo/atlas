@@ -167,7 +167,7 @@ bool EXPORT replace_all(
 );
 
 //escape
-void EXPORT escape(std::string& str, char toEscape);
-void EXPORT unescape(std::string& str, char toUnEscape);
+void escape(std::string& str, char toEscape);
+void unescape(std::string& str, char toUnEscape);
 
 }

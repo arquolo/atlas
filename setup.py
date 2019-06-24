@@ -48,29 +48,39 @@ class BuildExt(build_ext):
 
 
 setuptools.setup(
-    name='gigaslide',
+    name='atlas',
     version='0.0.1',
     author='Paul Maevskikh',
     author_email='arquolo@gmail.com',
-    url='https://github.com/arquolo/gigaslide',
+    url='https://github.com/arquolo/atlas',
     description='Library for read/write access to large image files',
     long_description='',
     packages=setuptools.find_packages(),
     ext_modules=[
         setuptools.Extension(
-            'gigaslide',
+            'atlas',
             [
+                'src/utility.cpp',
+                'src/codec.cpp',
+                'src/codec_jpeg2000.cpp',
+                'src/codec_tiff_tools.cpp',
+                'src/codec_tiff.cpp',
                 'src/main.cpp',
-                'src/image_base.cpp',
                 # 'src/image_writer.cpp',
-                'src/image.cpp',
-                'src/box.cpp',
             ],
             # [str(s) for s in (Path(__file__).parent / 'src').rglob('*.cpp')],
             include_dirs=[
                 # PyBindInclude(),
                 PyBindInclude(user=True),
                 './include',
+                'C:/Users/pmaevskikh/Sources/deps/include/tiff/',
+                'C:/Users/pmaevskikh/Sources/deps/include/openjpeg/',
+            ],
+            libraries=[
+                'openjp2', 'tiff'
+            ],
+            library_dirs=[
+                'C:/Users/pmaevskikh/Sources/deps/lib/',
             ],
             language='c++'
         ),

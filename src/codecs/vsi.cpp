@@ -1,12 +1,11 @@
-#include "VSIImage.h"
+#include "codecs/vsi.h"
+#include "core/filetools.h"
+
 #include <iostream>
 #include <fstream>
 #include <string>
 #include <cstring>
-#include <math.h>
-#include "core/filetools.h"
-#include "core/Box.h"
-#include "core/PathologyEnums.h"
+#include <cmath>
 
 // Include DCMTK LIBJPEG for lossy and lossless JPEG compression
 extern "C" {
@@ -19,14 +18,14 @@ extern "C" {
 
 #include "JPEG2000Codec.h"
 
-using namespace enums;
-using namespace std;
-
-VSIImage::VSIImage() : MultiResolutionImage(),
-	_vsiFileName(""), _etsFile(""), _tileOffsets(), _tileCoords(),
+VSIImage::VSIImage(std::string const& filename)
+  : Image{filename}
+  , _vsiFileName(""), _etsFile(""), _tileOffsets(), _tileCoords(),
 	_tileSizeX(0), _tileSizeY(0), _nrTilesX(0),
 	_nrTilesY(0), _compressionType(0)
 {
+    if (!filename.endswith(".vsi"))
+        throw std::runtime_error{"unsupported extension"};
 }
 
 VSIImage::~VSIImage() {

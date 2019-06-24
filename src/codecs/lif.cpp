@@ -1,25 +1,25 @@
-#include "LIFImage.h"
+#include "codecs/lif.h"
+#include "enums.h"
+
 #include <fstream>
 #include <iostream>
 #include <cmath>
 #include "core/filetools.h"
 #include "core/stringconversion.h"
-#include "core/PathologyEnums.h"
 #include "pugixml.hpp"
-
-
-using namespace enums;
 
 const char LIFImage::LIF_MAGIC_BYTE = 0x70;
 const char LIFImage::LIF_MEMORY_BYTE = 0x2a;
 
-LIFImage::LIFImage()
-  : MultiResolutionImage()
+LIFImage::LIFImage(const std::string& filename)
+  : Image{filename}
   , _lastChannel(0)
   , _alternateCenter(false)
   , _selectedSeries(-1)
   , _fileSize(0)
   , _fileName("") {
+    if (!filepath.endswith(".lif"))
+        throw std::runtime_error{"unsupported extension"};
 }
 
 LIFImage::~LIFImage() {
