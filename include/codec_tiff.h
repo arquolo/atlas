@@ -18,7 +18,7 @@ class Tiff final : public Codec<Tiff> {
     Array<T> _read_atom(uint16_t level, size_t iy, size_t ix) const;
 
 public:
-    Tiff(Path const& path);
+    Tiff(const Path& path);
 
     DType dtype() const noexcept;
     const Shape& shape() const noexcept;

@@ -1,4 +1,5 @@
 #include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
 
 #include "codec.h"
 #include "codec_tiff.h"
@@ -13,7 +14,7 @@ struct Image {
     Image(const std::string& path): codec{
         [path = Path{path}]() {
             auto ext = path.extension();
-            if (ext == ".tif" || ext == ".tiff")
+            if (ext == ".svs" || ext == ".tif" || ext == ".tiff")
                 return std::make_unique<codec::tiff::Tiff>(path);
             throw py::type_error{"Unsupported extension"};
         }()
@@ -24,6 +25,14 @@ struct Image {
     auto shape() const {
         const auto& s = codec->shape();
         return std::make_tuple(s[0], s[1], codec->samples);
+    }
+
+    auto scales() const {
+        std::vector<size_t> scales_;
+        for (const auto& level : codec->levels)
+            if (!level.shape.empty())
+                scales_.push_back(codec->get_scale(level));
+        return scales_;
     }
 };
 
@@ -82,6 +91,7 @@ PYBIND11_MODULE(atlas, m) {
         .def(py::init<const std::string&>(), py::arg("path"))
         .def("__getitem__", &Image::getitem, py::arg("slices"))
         .def_property_readonly("shape", &Image::shape, "Shape")
+        .def_property_readonly("scales", &Image::scales, "Scales")
         .def_property_readonly(
             "dtype",
             [](const Image& self) { return typed<numpy_dtype>(self.codec->dtype()); },

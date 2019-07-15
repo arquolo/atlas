@@ -79,7 +79,7 @@ Color get_ctype(const File& f) {
     }
 }
 
-auto read_pyramid(File const& f) {
+auto read_pyramid(const File& f) {
     TIFFSetDirectory(f, 0);
     uint16_t level_count = TIFFNumberOfDirectories(f);
     if (level_count < 1)
@@ -88,15 +88,14 @@ auto read_pyramid(File const& f) {
     std::vector<Level> levels;
     for (uint16_t level = 0; level < level_count; ++level) {
         TIFFSetDirectory(f, level);
-
-        if (!TIFFIsTiled(f))
-            continue;
-
-        Level lv{Shape{f.get<uint32_t>(TIFFTAG_IMAGELENGTH),
-                       f.get<uint32_t>(TIFFTAG_IMAGEWIDTH)},
-                 Shape{f.get<uint32_t>(TIFFTAG_TILELENGTH),
-                       f.get<uint32_t>(TIFFTAG_TILEWIDTH)}};
-        levels.push_back(lv);
+        if (TIFFIsTiled(f)) {
+            Level lv{Shape{f.get<uint32_t>(TIFFTAG_IMAGELENGTH),
+                           f.get<uint32_t>(TIFFTAG_IMAGEWIDTH)},
+                     Shape{f.get<uint32_t>(TIFFTAG_TILELENGTH),
+                           f.get<uint32_t>(TIFFTAG_TILEWIDTH)}};
+            levels.emplace_back(std::move(lv));
+        } else
+            levels.emplace_back();
     }
     TIFFSetDirectory(f, 0);
     return levels;
@@ -104,7 +103,7 @@ auto read_pyramid(File const& f) {
 
 } // namespace detail
 
-Tiff::Tiff(Path const& path)
+Tiff::Tiff(const Path& path)
   : Codec<Tiff>{}
   , file_{path, "rm"}
   , dtype_{detail::get_dtype(file_)}
