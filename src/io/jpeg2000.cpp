@@ -1,12 +1,7 @@
 #include "openjpeg.h"
 #include "opj_config.h"
 
-#include "codec_jpeg2000.h"
-
-#include <cstring>
-#include <sstream>
-#include <string>
-#include <vector>
+#include "al/io/jpeg2000.h"
 
 namespace std {
 template <typename T, typename Deleter>
@@ -21,7 +16,7 @@ struct stream_t {
     OPJ_SIZE_T offset = 0;
 };
 
-void null_callback(const char* msg, void* client_data) {}
+void null_callback(const char*, void*) {}
 
 static void stream_no_op(void*) {}
 
@@ -112,9 +107,9 @@ auto create_default_memory_stream(stream_t* stream, OPJ_BOOL readable) {
 
 } // namespace
 
-namespace al::codec::jp2k::detail {
+namespace al::io::jp2k {
 
-std::vector<uint8_t> decode(const std::vector<uint8_t>& buf) {
+std::vector<uint8_t> _decode(const std::vector<uint8_t>& buf) {
     // set up the input buffer as a stream
     stream_t stream{(OPJ_UINT8*)buf.data(), buf.size()};
 
@@ -234,7 +229,7 @@ std::vector<uint8_t> encode(
     image->y1 = (OPJ_UINT32)(components[0].h - 1) * (OPJ_UINT32)parameters.subsampling_dy + 1;
 
     // setup the encoder parameters using the current image and user parameters
-    OPJ_BOOL setup_success = opj_setup_encoder(encoder, &parameters, image);
+    opj_setup_encoder(encoder, &parameters, image);
 
     // (re)set the buffer pointers
     std::vector<OPJ_INT32*> cmp_iters(image->numcomps);
@@ -263,4 +258,4 @@ std::vector<uint8_t> encode(
     return std::vector<uint8_t>(buffer.data, buffer.data + buffer.offset + 1);
 }
 
-} // namespace gs::jp2k::detail
+} // namespace al::io::jp2k

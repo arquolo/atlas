@@ -1,5 +1,5 @@
-#include "image_writer.h"
-#include "image.h"
+#include "al/writer.h"
+#include "al/image.h"
 
 #include <algorithm>
 #include <cmath>
@@ -12,9 +12,9 @@ extern "C" {
 #include "tiffio.h"
 };
 
-#include "enums.h"
-#include "image.h"
-#include "codecs/jpeg2000.h"
+#include "al/core/types.h"
+#include "al/files/jpeg2000.h"
+#include "al/image.h"
 
 namespace gs {
 

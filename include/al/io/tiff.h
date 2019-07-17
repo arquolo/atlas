@@ -1,15 +1,13 @@
-#include <filesystem>
 #include <memory>
 #include <optional>
 #include <stdexcept>
-#include <string>
 #include <vector>
 
 #include "tiffio.h"
 
-#include "utility.h"
+#include "al/core/path.h"
 
-namespace al::codec::tiff {
+namespace al::io::tiff {
 
 template <typename T>
 struct Allocator {
@@ -37,7 +35,7 @@ bool operator==(const Allocator<T>&, const Allocator<U>&) { return true; }
 template <typename T, typename U>
 bool operator!=(const Allocator<T>&, const Allocator<U>&) { return false; }
 
-class File final {
+class File {
     std::unique_ptr<TIFF, void (*)(TIFF*)> ptr_;
 
 public:
@@ -106,4 +104,4 @@ public:
     // void write_directory() noexcept;
 };
 
-} // namespace al::codec::tiff
+} // namespace al::io::tiff

@@ -1,49 +1,63 @@
+from dataclasses import dataclass
+from functools import wraps
 from pathlib import Path
 
 import setuptools
 from setuptools.command.build_ext import build_ext
 
 
-class PyBindInclude:
-    """
-    Helper class to determine the pybind11 include path
-    The purpose of this class is to postpone importing pybind11
-    until it is actually installed, so that the ``get_include()``
-    method can be invoked. """
+def patch_init(cls):
+    def wrapper(self):
+        initialize(self)
+        self.compile_options = [
+            '-nologo', '-DNDEBUG', '-W4',
+            # '-O1',  # minimize size
+            '-O2',  # maximize speed
+            # '-MT',  # static linkage
+            '-MD',  # dynamic linkage
+            '-std:c++latest',
+        ]
+        self.ldflags_shared.clear()
+        self.ldflags_shared.extend([
+            '-nologo', '-INCREMENTAL:NO', '-DLL', '-MANIFEST:NO'])
 
-    def __init__(self, user=False):
-        self.user = user
+    initialize = cls.initialize
+    cls.initialize = wraps(initialize)(wrapper)
+
+
+@dataclass
+class PyBindInclude:
+    user: bool = False
 
     def __str__(self):
         import pybind11
-        include_path = pybind11.get_include(self.user)
-        print(include_path)
-        return include_path
+        return pybind11.get_include(self.user)
 
 
 class BuildExt(build_ext):
     """A custom build extension for adding compiler-specific options."""
 
     def build_extensions(self):
-        opts_mapping = {
-            'unix': [
-                f'-DVERSION_INFO="{self.distribution.get_version()}"',
-                '-std=c++20',
-                '-fvisibility=hidden',
-                '-Oz',
-            ],
-            'msvc': [
-                f'/DVERSION_INFO=\\"{self.distribution.get_version()}\\"',
-                '/std:c++latest',
-                '/Os',
-            ]
+        options = {
+            'unix': (
+                [f'-DVERSION_INFO="{self.distribution.get_version()}"',
+                 '-std=c++20',
+                 '-fvisibility=hidden',
+                 '-O3'],
+                (lambda cls: None)),
+            'msvc': (
+                [f'-DVERSION_INFO=\\"{self.distribution.get_version()}\\"'],
+                patch_init
+            )
         }
-        opts = opts_mapping.get(self.compiler.compiler_type)
-        if opts is None:
-            raise RuntimeError(f'only {set(opts_mapping)} compilers supported')
+        option = options.get(self.compiler.compiler_type)
+        if option is None:
+            raise RuntimeError(f'only {set(options)} compilers supported')
 
+        args, patch = option
         for ext in self.extensions:
-            ext.extra_compile_args = opts
+            ext.extra_compile_args = args
+        patch(self.compiler.__class__)
         super().build_extensions()
 
 
@@ -60,28 +74,24 @@ setuptools.setup(
         setuptools.Extension(
             'atlas',
             [
-                'src/utility.cpp',
-                'src/codec.cpp',
-                'src/codec_jpeg2000.cpp',
-                'src/codec_tiff_tools.cpp',
-                'src/codec_tiff.cpp',
+                'src/core/path.cpp',
+                'src/core/types.cpp',
+                'src/io/jpeg2000.cpp',
+                'src/io/tiff.cpp',
+                'src/image.cpp',
+                'src/image_tiff.cpp',
                 'src/main.cpp',
-                # 'src/image_writer.cpp',
+                # 'src/writer.cpp',
             ],
-            # [str(s) for s in (Path(__file__).parent / 'src').rglob('*.cpp')],
+            # list(map(str, Path(__file__).parent.glob('src/*.cpp'))),
             include_dirs=[
                 # PyBindInclude(),
                 PyBindInclude(user=True),
                 './include',
-                'C:/Users/pmaevskikh/Sources/deps/include/tiff/',
-                'C:/Users/pmaevskikh/Sources/deps/include/openjpeg/',
+                './__dependencies__/include',
             ],
-            libraries=[
-                'openjp2', 'tiff'
-            ],
-            library_dirs=[
-                'C:/Users/pmaevskikh/Sources/deps/lib/',
-            ],
+            library_dirs=['./__dependencies__/lib'],
+            libraries=['openjp2', 'tiff'],
             language='c++'
         ),
     ],

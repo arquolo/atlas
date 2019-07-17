@@ -1,6 +1,6 @@
-#include "codec_tiff_tools.h"
+#include "al/io/tiff.h"
 
-namespace al::codec::tiff {
+namespace al::io::tiff {
 
 auto tiff_open(const Path& path, const std::string& flags) {
 #ifdef _WIN32
@@ -16,19 +16,15 @@ auto tiff_open(const Path& path, const std::string& flags) {
 }
 
 File::File(const Path& path, const std::string& flags)
-  : ptr_{tiff_open(path, flags)}
-{}
+  : ptr_{tiff_open(path, flags)} {}
 
 uint32_t File::position(size_t iy, size_t ix) const noexcept {
-    return static_cast<size_t>(
-        TIFFComputeTile(
-            *this, static_cast<uint32_t>(ix), static_cast<uint32_t>(iy), 0, 0
-        )
-    );
+    return static_cast<size_t>(TIFFComputeTile(
+        *this, static_cast<uint32_t>(ix), static_cast<uint32_t>(iy), 0, 0));
 }
 
 uint32_t File::tiles() const noexcept { return TIFFNumberOfTiles(*this); }
 
 // void File::write_directory () noexcept { TIFFWriteDirectory(*this); }
 
-} // namespace al::codec::tiff
+} // namespace al::io::tiff

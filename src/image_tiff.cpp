@@ -1,14 +1,11 @@
-#include "codec_tiff.h"
-
 #include <optional>
 
 #include "tiffio.h"
 
-#include "codec_jpeg2000.h"
+#include "al/image_tiff.h"
+#include "al/io/jpeg2000.h"
 
 // TIFFImage::TIFFImage(std::filesystem::path const& path): Image{path} {
-//     if (!path::ends_with(path, {".tiff", ".tif"}))
-//         throw std::runtime_error{"unsupported extension"};
 //     TIFFSetDirectory(tiff_, 0);
 //     float spacing_y;
 //     float spacing_x;
@@ -18,10 +15,10 @@
 //         spacing_.push_back(10000. / spacing_x);
 // }
 
-namespace al::codec::tiff {
+namespace al {
 namespace detail {
 
-DType get_dtype(const File& f) {
+DType get_dtype(const io::tiff::File& f) {
     auto bitdepth = f.get<uint16_t>(TIFFTAG_BITSPERSAMPLE);
     auto dtype = f.try_get<uint16_t>(TIFFTAG_SAMPLEFORMAT).value_or(1);
 
@@ -51,7 +48,7 @@ DType get_dtype(const File& f) {
     }
 }
 
-Color get_ctype(const File& f) {
+Color get_ctype(const io::tiff::File& f) {
     auto ctype = f.get<uint16_t>(TIFFTAG_PHOTOMETRIC);
     auto samples = (ctype != PHOTOMETRIC_YCBCR)
         ? f.get<uint16_t>(TIFFTAG_SAMPLESPERPIXEL)
@@ -79,20 +76,22 @@ Color get_ctype(const File& f) {
     }
 }
 
-auto read_pyramid(const File& f) {
+auto read_pyramid(const io::tiff::File& f, size_t samples) {
     TIFFSetDirectory(f, 0);
-    uint16_t level_count = TIFFNumberOfDirectories(f);
+    Level level_count = TIFFNumberOfDirectories(f);
     if (level_count < 1)
         throw std::runtime_error{"Tiff have no levels"};
 
-    std::vector<Level> levels;
-    for (uint16_t level = 0; level < level_count; ++level) {
+    std::vector<LevelInfo> levels;
+    for (Level level = 0; level < level_count; ++level) {
         TIFFSetDirectory(f, level);
         if (TIFFIsTiled(f)) {
-            Level lv{Shape{f.get<uint32_t>(TIFFTAG_IMAGELENGTH),
-                           f.get<uint32_t>(TIFFTAG_IMAGEWIDTH)},
-                     Shape{f.get<uint32_t>(TIFFTAG_TILELENGTH),
-                           f.get<uint32_t>(TIFFTAG_TILEWIDTH)}};
+            LevelInfo lv{Shape{f.get<uint32_t>(TIFFTAG_IMAGELENGTH),
+                               f.get<uint32_t>(TIFFTAG_IMAGEWIDTH),
+                               samples},
+                         Shape{f.get<uint32_t>(TIFFTAG_TILELENGTH),
+                               f.get<uint32_t>(TIFFTAG_TILEWIDTH),
+                               samples}};
             levels.emplace_back(std::move(lv));
         } else
             levels.emplace_back();
@@ -103,10 +102,8 @@ auto read_pyramid(const File& f) {
 
 } // namespace detail
 
-Tiff::Tiff(const Path& path)
-  : Codec<Tiff>{}
-  , file_{path, "rm"}
-  , dtype_{detail::get_dtype(file_)}
+TiffImage::TiffImage(const Path& path)
+  : file_{path, "rm"}
   , ctype_{detail::get_ctype(file_)}
   , codec_{file_.get<uint16_t>(TIFFTAG_COMPRESSION)}
 {
@@ -123,10 +120,9 @@ Tiff::Tiff(const Path& path)
     if (file_.get<uint16_t>(TIFFTAG_PLANARCONFIG) != PLANARCONFIG_CONTIG)
         throw std::runtime_error{"Tiff is not contiguous"};
 
-    levels = detail::read_pyramid(file_);
-    samples = al::to_samples(ctype_);
+    samples_ = al::to_samples(ctype_);
+    levels_ = detail::read_pyramid(file_, samples_);
+    dtype_ = detail::get_dtype(file_);
 }
 
-DType Tiff::dtype() const noexcept { return dtype_; }
-
-} // namespace al::codec::tiff
+} // namespace al
