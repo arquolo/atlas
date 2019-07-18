@@ -9,9 +9,8 @@ namespace al {
 class TiffImage final : public Image<TiffImage> {
     static inline constexpr const char* extensions[] = {".svs", ".tif", ".tiff"};
 
-    io::tiff::File file_;
-    Color ctype_ = Color::Invalid;
-    uint16_t codec_ = 0;
+    const io::tiff::File file_;
+    const uint16_t codec_ = 0;
 
     template <typename T>
     Array<T> _read_typed_at(Level level, size_t iy, size_t ix) const;
@@ -26,7 +25,7 @@ public:
 template <typename T>
 Array<T> TiffImage::_read_typed_at(Level level, size_t iy, size_t ix) const {
     TIFFSetDirectory(this->file_, level);
-    const auto& tshape = this->levels_[level].tile_shape;
+    const auto& tshape = this->levels[level].tile_shape;
 
     if (this->codec_ == 33005) { // Aperio SVS
         std::vector<uint8_t> buffer(TIFFTileSize(this->file_));
@@ -36,9 +35,9 @@ Array<T> TiffImage::_read_typed_at(Level level, size_t iy, size_t ix) const {
             buffer.data(),
             buffer.size()
         ));
-        return io::jp2k::decode<T>(buffer, this->levels_[level].tile_shape);
+        return io::jp2k::decode<T>(buffer, this->levels[level].tile_shape);
     }
-    if (this->ctype_ != Color::ARGB) {
+    if (this->samples != 4) {
         auto tile = Array<T>(tshape);
         auto info = tile.request();
         TIFFReadTile(this->file_, info.ptr, ix, iy, 0, 0);
@@ -60,17 +59,17 @@ Array<T> TiffImage::_read_typed_at(Level level, size_t iy, size_t ix) const {
 
 template <typename T>
 Array<T> TiffImage::_read_typed(const Box& box) const {
-    const auto& tshape = this->levels_[box.level].tile_shape;
+    const auto& tshape = this->levels[box.level].tile_shape;
     size_t min_[] = {
         floor(box.min_[0], tshape[0]),
         floor(box.min_[1], tshape[1])
     };
-    const auto& shape = this->levels_[box.level].shape;
+    const auto& shape = this->levels[box.level].shape;
     size_t max_[] {
         ceil(std::min(box.max_[0], shape[0]), tshape[0]),
         ceil(std::min(box.max_[1], shape[1]), tshape[1])
     };
-    Array<T> result{{box.shape(0), box.shape(1), this->samples_}};
+    Array<T> result{{box.shape(0), box.shape(1), this->samples}};
 
     for (auto iy = min_[0]; iy < max_[0]; iy += tshape[0]) {
         for (auto ix = min_[1]; ix < max_[1]; ix += tshape[1]) {

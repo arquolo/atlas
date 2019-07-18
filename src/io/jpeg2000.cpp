@@ -163,11 +163,7 @@ std::vector<uint8_t> _decode(const std::vector<uint8_t>& buf) {
     return result;
 }
 
-std::vector<uint8_t> encode(
-    Buffer data,
-    size_t rate,
-    Color ctype
-) {
+std::vector<uint8_t> encode(Buffer data, size_t rate) {
     auto info = data.request();
 
     auto samples = info.shape[2];
@@ -199,10 +195,9 @@ std::vector<uint8_t> encode(
         component.x0 = 0;
         component.y0 = 0;
     }
-    OPJ_COLOR_SPACE color_space = (
-        (ctype == Color::RGB || ctype == Color::ARGB)
+    OPJ_COLOR_SPACE color_space = (samples == 3 || samples == 4)
         ? COLOR_SPACE::OPJ_CLRSPC_SRGB
-        : COLOR_SPACE::OPJ_CLRSPC_GRAY);
+        : COLOR_SPACE::OPJ_CLRSPC_GRAY;
 
     // get a J2K compressor handle
     opj_codec_t* encoder = opj_create_compress(CODEC_FORMAT::OPJ_CODEC_J2K);

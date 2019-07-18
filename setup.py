@@ -74,8 +74,6 @@ setuptools.setup(
         setuptools.Extension(
             'atlas',
             [
-                'src/core/path.cpp',
-                'src/core/types.cpp',
                 'src/io/jpeg2000.cpp',
                 'src/io/tiff.cpp',
                 'src/image.cpp',

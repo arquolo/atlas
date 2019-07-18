@@ -19,14 +19,6 @@ PYBIND11_MODULE(atlas, m) {
     m.attr("__version__") = "dev";
 #endif
 
-    py::enum_<Color>(m, "Color")
-        .value("Invalid", Color::Invalid)
-        .value("Indexed", Color::Indexed)
-        .value("Monochrome", Color::Monochrome)
-        .value("RGB", Color::RGB)
-        .value("ARGB", Color::ARGB)
-        ;
-
     py::enum_<Bitstream>(m, "Bitstream")
         .value("RAW", Bitstream::RAW)
         .value("LZW", Bitstream::LZW)
@@ -43,11 +35,11 @@ PYBIND11_MODULE(atlas, m) {
         .def(py::init(&_Image::make), py::arg("path"))
         .def_property_readonly(
             "dtype",
-            [](const _Image& self){ return from_dtype<numpy_dtype>(self.dtype()); },
+            [](const _Image& self){ return from_dtype<numpy_dtype>(self.dtype); },
             "Data type")
         .def_property_readonly(
             "shape",
-            [](const _Image& self) { return al::as_tuple(self.shape()); },
+            [](const _Image& self) { return al::as_tuple(self.levels.front().shape); },
             "Shape")
         .def_property_readonly("scales", &_Image::scales, "Scales")
         .def("__getitem__", &_Image::read, py::arg("slices"))

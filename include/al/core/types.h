@@ -1,6 +1,5 @@
 #pragma once
 
-#include <iostream> // for print_
 #include <memory>
 #include <numeric>
 #include <type_traits>
@@ -15,7 +14,6 @@ namespace al {
 
 // ---------------------------------- types ----------------------------------
 
-enum class Color : int { Invalid, Indexed, Monochrome, RGB, ARGB };
 enum class DType : int { Invalid, UInt8, UInt16, UInt32, Float };
 enum class Bitstream : int { RAW, LZW, JPEG, JPEG2000 };
 enum class Interpolation : int { Nearest, Linear };
@@ -39,8 +37,6 @@ template <typename T>
 using Array = py::array_t<T, py::array::c_style | py::array::forcecast>;
 
 // -------------------------------- functions --------------------------------
-
-size_t to_samples(Color ctype) noexcept;
 
 constexpr size_t bytes(DType dtype) noexcept;
 
@@ -140,24 +136,16 @@ auto to_array(std::shared_ptr<const Array<T>> sptr) {
         }));
 }
 
+namespace {
 template <typename T, size_t N, size_t... Is>
-auto as_tuple(const std::array<T, N>& array, std::index_sequence<Is...>) {
+auto _as_tuple(const std::array<T, N>& array, std::index_sequence<Is...>) {
     return std::make_tuple(array[Is]...);
 }
+} // namespace
 
 template <typename T, size_t N>
 auto as_tuple(const std::array<T, N>& array) {
-    return as_tuple(array, std::make_index_sequence<N>{});
+    return _as_tuple(array, std::make_index_sequence<N>{});
 }
 
 } // namespace al
-
-template <typename Head, typename... Args>
-inline void print_(Head&& head, Args&& ...args) {
-    std::cout << std::forward<Head>(head) << " ";
-    print_(std::forward<Args>(args)...);
-}
-
-inline void print_() {
-    std::cout << "\n";
-}

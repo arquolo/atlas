@@ -23,54 +23,44 @@ DType get_dtype(const io::tiff::File& f) {
     auto dtype = f.try_get<uint16_t>(TIFFTAG_SAMPLEFORMAT).value_or(1);
 
     switch (dtype) {
-    case SAMPLEFORMAT_IEEEFP:
-        switch (bitdepth) {
-        case 32:
-            return DType::Float;
-        default:
-            throw std::runtime_error{"Unsupported bitdepth"
-                                     + std::to_string(bitdepth)};
-        }
     case SAMPLEFORMAT_UINT:
         switch (bitdepth) {
-        case 32:
-            return DType::UInt32;
-        case 16:
-            return DType::UInt16;
         case 8:
             return DType::UInt8;
+        case 16:
+            return DType::UInt16;
+        case 32:
+            return DType::UInt32;
         default:
             throw std::runtime_error{"Unsupported bitdepth"
                                      + std::to_string(bitdepth)};
         }
+    case SAMPLEFORMAT_IEEEFP:
+        if (bitdepth == 32)
+            return DType::Float;
+        throw std::runtime_error{"Unsupported bitdepth" + std::to_string(bitdepth)};
     default:
         throw std::runtime_error{"Unsupported dtype"};
     }
 }
 
-Color get_ctype(const io::tiff::File& f) {
+size_t get_samples(const io::tiff::File& f) {
     auto ctype = f.get<uint16_t>(TIFFTAG_PHOTOMETRIC);
-    auto samples = (ctype != PHOTOMETRIC_YCBCR)
-        ? f.get<uint16_t>(TIFFTAG_SAMPLESPERPIXEL)
-        : 4;
-
     switch (ctype) {
-    case PHOTOMETRIC_MINISBLACK:
-        return (samples == 1) ? Color::Monochrome : Color::Indexed;
-    case PHOTOMETRIC_RGB:
-        switch (samples) {
-        case 3:
-            return Color::RGB;
-        case 4:
-            return Color::ARGB;
-        default:
-            throw std::runtime_error{"Unsupported samples: "
-                                     + std::to_string(samples)};
-        }
+    case PHOTOMETRIC_MINISBLACK: {
+        auto samples = f.get<uint16_t>(TIFFTAG_SAMPLESPERPIXEL);
+        if (samples == 1)
+            return samples;
+        throw std::runtime_error{"Indexed color is not supported"};
+    }
+    case PHOTOMETRIC_RGB: {
+        auto samples = f.get<uint16_t>(TIFFTAG_SAMPLESPERPIXEL);
+        if (samples == 3 || samples == 4)
+            return samples;
+        throw std::runtime_error{"Unsupported sample count: " + std::to_string(samples)};
+    }
     case PHOTOMETRIC_YCBCR:
-        if (samples != 4)
-            throw std::runtime_error{"Invalid color"};
-        return Color::ARGB;
+        return 4;
     default:
         throw std::runtime_error{"Unsupported color type"};
     }
@@ -104,7 +94,6 @@ auto read_pyramid(const io::tiff::File& f, size_t samples) {
 
 TiffImage::TiffImage(const Path& path)
   : file_{path, "rm"}
-  , ctype_{detail::get_ctype(file_)}
   , codec_{file_.get<uint16_t>(TIFFTAG_COMPRESSION)}
 {
     auto c_descr = file_.get_defaulted<const char*>(TIFFTAG_IMAGEDESCRIPTION);
@@ -120,9 +109,9 @@ TiffImage::TiffImage(const Path& path)
     if (file_.get<uint16_t>(TIFFTAG_PLANARCONFIG) != PLANARCONFIG_CONTIG)
         throw std::runtime_error{"Tiff is not contiguous"};
 
-    samples_ = al::to_samples(ctype_);
-    levels_ = detail::read_pyramid(file_, samples_);
-    dtype_ = detail::get_dtype(file_);
+    samples = detail::get_samples(file_);
+    levels = detail::read_pyramid(file_, samples);
+    dtype = detail::get_dtype(file_);
 }
 
 } // namespace al
