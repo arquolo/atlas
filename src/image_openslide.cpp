@@ -1,14 +1,10 @@
 #include "openslide.h"
 
-#include "codecs/openslide.h"
+#include "al/image_openslide.h"
 
 #include <sstream>
 
-namespace al::codec::openslide {
-
-static const std::vector<std::string> extensions = {
-    "svs", "tif", "tiff", "mrxs", "vms", "vmu", "ndpi", "scn",  "svslide", "bif"
-};
+namespace al {
 
 namespace {
 
@@ -28,17 +24,15 @@ auto open(Path const& path) {
 
 File::File(Path const& path) : ptr_{open(path), openslide_close} {}
 
-OpenSlide::OpenSlide(Path const& path)
-  : Codec<OpenSlide>{}
-  , file_{path}
-{
+OpenSlide::OpenSlide(Path const& path) : Codec<OpenSlide>{}, file_{path} {
     levels_ = openslide_get_level_count(file_);
 
     for (size_t i = 0; i < levels_; ++i) {
         int64_t y;
         int64_t x;
         openslide_get_level_dimensions(file_, i, &x, &y);
-        level_dims_.emplace_back(static_cast<size_t>(y), static_cast<size_t>(x));
+        level_dims_.emplace_back(
+            static_cast<size_t>(y), static_cast<size_t>(x));
     }
 
     // std::stringstream ssm;
@@ -59,12 +53,13 @@ OpenSlide::OpenSlide(Path const& path)
     // }
 
     // Get background color if present
-    const char* bg_color_hex = openslide_get_property_value(slide_, "openslide.background-color");
+    const char* bg_color_hex
+        = openslide_get_property_value(slide_, "openslide.background-color");
     if (bg_color_hex) {
-        unsigned int bg_color = std::stoi(bg_color_hex, 0, 16);
-        bg_r_ = ((bg_color >> 16) & 0xff);
-        bg_g_ = ((bg_color >> 8) & 0xff);
-        bg_b_ = (bg_color & 0xff);
+        uint32_t bg_color = std::stoi(bg_color_hex, 0, 16);
+        bg_r_ = 0xFF & (bg_color >> 16);
+        bg_g_ = 0xFF & (bg_color >> 8);
+        bg_b_ = 0xFF & bg_color;
     }
 }
 
@@ -76,35 +71,41 @@ void OpenSlide::cache_capacity(size_t capacity) {
 #endif
 }
 
-std::string OpenSlide::get(std::string const& name) const {
+std::string OpenSlide::get(const std::string& name) const {
     std::string value;
     if (value = openslide_get_property_value(file_, name.c_str()))
         return value;
     return {};
 }
 
-Array<uint8_t> OpenSlide::_read(Box const& box) {
-    std::vector<uint8_t> bgra(height * width * 4);
-    openslide_read_region(slide_, reinterpret_cast<uint32_t*>(bgra.data()),
-                          x, y, level, width, height);
+template <>
+Array<uint8_t> OpenSlide::_read(const Box& box) {
+    Array<uint8_t> result{{box.shape(0), box.shape(1), 4}};
+    auto info = result.request();
+    openslide_read_region(
+        slide_, reinterpret_cast<uint32_t*>(info.ptr),
+        x, y, level, box.width, box.height);
 
-    std::vector<uint8_t> rgb(height * width * 3);
-    for (size_t i = 0, j = 0; i < height * width * 4; i += 4, j += 3) {
-        if (bgra[i + 3] == 255) {
-            rgb[j] = bgra[i + 2];
-            rgb[j + 1] = bgra[i + 1];
-            rgb[j + 2] = bgra[i];
-        } else if (bgra[i + 3] == 0) {
-            rgb[j] = bg_r_;
-            rgb[j + 1] = bg_g_;
-            rgb[j + 2] = bg_b_;
-        } else {
-            rgb[j] = (255. * bgra[i + 2]) / bgra[i + 3];
-            rgb[j + 1] = (255. * bgra[i + 1]) / bgra[i + 3];
-            rgb[j + 2] = (255. * bgra[i]) / bgra[i + 3];
+    auto r = result.mutable_unchecked<3>();
+
+    for (size_t y = 0; y < box.height; ++y)
+        for (size_t x = 0; x < box.width; ++x)
+            const auto alpha = r(y, x, 3);
+            if (alpha == 255) {
+                r(y, x, 0) = r(y, x, 2);
+                r(y, x, 1) = r(y, x, 1);
+                r(y, x, 2) = r(y, x, 0);
+            } else if (alpha == 0) {
+                r(y, x, 0) = bg_r_;
+                r(y, x, 1) = bg_g_;
+                r(y, x, 2) = bg_b_;
+            } else {
+                r(y, x, 0) = 255.f * r(y, x, 2) / alpha;
+                r(y, x, 1) = 255.f * r(y, x, 1) / alpha;
+                r(y, x, 2) = 255.f * r(y, x, 0) / alpha;
+            }
         }
-  }
-  return rgb;
+    return result;
 }
 
-} // namespace gs
+} // namespace al

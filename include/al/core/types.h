@@ -1,5 +1,6 @@
 #pragma once
 
+// #include <iostream>
 #include <memory>
 #include <numeric>
 #include <optional>
@@ -112,3 +113,9 @@ auto make_variant(Pred pred, std::variant<Ts...> var) -> std::optional<decltype(
 }
 
 } // namespace al
+
+// template<typename ...Args>
+// void print_(Args&&... args) {
+//     std::cout << __FUNCSIG__ << '\n';
+//     (std::cout << ... << std::forward<Args>(args)) << '\n';
+// }
