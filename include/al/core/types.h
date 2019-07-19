@@ -14,7 +14,6 @@ namespace al {
 
 // ---------------------------------- types ----------------------------------
 
-enum class DType : int { Invalid, UInt8, UInt16, UInt32, Float };
 enum class Bitstream : int { RAW, LZW, JPEG, JPEG2000 };
 enum class Interpolation : int { Nearest, Linear };
 
@@ -31,25 +30,15 @@ struct Box {
     }
 };
 
-using Buffer = py::buffer;
-
 template <typename T>
 using Array = py::array_t<T, py::array::c_style | py::array::forcecast>;
 
 // -------------------------------- functions --------------------------------
 
-constexpr size_t bytes(DType dtype) noexcept;
-
 template <typename T, typename = std::enable_if_t<std::is_unsigned_v<T>>>
 constexpr T ceil(T num, T factor) noexcept;
 template <typename T, typename = std::enable_if_t<std::is_unsigned_v<T>>>
 constexpr T floor(T num, T factor) noexcept;
-
-template <typename T>
-constexpr DType to_dtype() noexcept;
-
-template <template <typename> typename Tp, typename... Args>
-constexpr auto from_dtype(DType dtype, Args&&... args);
 
 template <
     typename Container,
@@ -60,47 +49,6 @@ template <typename T>
 auto to_array(std::shared_ptr<const Array<T>> sptr);
 
 // -------------------------- function definitions --------------------------
-
-template <typename T>
-constexpr DType to_dtype() noexcept {
-    if constexpr (std::is_same_v<T, uint8_t>)
-        return DType::UInt8;
-    else if constexpr (std::is_same_v<T, uint16_t>)
-        return DType::UInt16;
-    else if constexpr (std::is_same_v<T, uint32_t>)
-        return DType::UInt32;
-    else if constexpr (std::is_same_v<T, float> || std::is_same_v<T, double>)
-        return DType::Float;
-    else
-        return DType::Invalid;
-}
-
-template <template <typename> typename Tp, typename... Args>
-constexpr auto from_dtype(DType dtype, Args&&... args) {
-    switch (dtype) {
-    case DType::UInt8:
-        return Tp<uint8_t>::visit(std::forward<Args>(args)...);
-    case DType::UInt16:
-        return Tp<uint16_t>::visit(std::forward<Args>(args)...);
-    case DType::UInt32:
-        return Tp<uint32_t>::visit(std::forward<Args>(args)...);
-    case DType::Float:
-        return Tp<float>::visit(std::forward<Args>(args)...);
-    default:
-        throw py::type_error{"Unknown data type"};
-    }
-}
-
-namespace {
-template <typename T>
-struct sizeof_visitor {
-    static constexpr size_t visit() noexcept { return sizeof(T); }
-};
-}
-
-constexpr size_t bytes(DType dtype) noexcept {
-    return from_dtype<sizeof_visitor>(dtype);
-}
 
 template <typename T, typename>
 constexpr T floor(T num, T factor) noexcept { return num - num % factor; }

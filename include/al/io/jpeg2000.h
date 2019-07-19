@@ -11,6 +11,6 @@ Array<T> decode(const std::vector<uint8_t>& buf, Shape shape) {
     return al::to_array(_decode(buf), shape);
 }
 
-std::vector<uint8_t> encode(Buffer data, size_t rate);
+std::vector<uint8_t> encode(py::buffer data, size_t rate);
 
 } // namespace al::io::jp2k

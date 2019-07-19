@@ -163,7 +163,7 @@ std::vector<uint8_t> _decode(const std::vector<uint8_t>& buf) {
     return result;
 }
 
-std::vector<uint8_t> encode(Buffer data, size_t rate) {
+std::vector<uint8_t> encode(py::buffer data, size_t rate) {
     auto info = data.request();
 
     auto samples = info.shape[2];

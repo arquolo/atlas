@@ -19,29 +19,24 @@ namespace al {
 namespace detail {
 
 DType get_dtype(const io::tiff::File& f) {
-    auto bitdepth = f.get<uint16_t>(TIFFTAG_BITSPERSAMPLE);
-    auto dtype = f.try_get<uint16_t>(TIFFTAG_SAMPLEFORMAT).value_or(1);
+    auto dtype = f.try_get<uint16_t>(TIFFTAG_SAMPLEFORMAT).value_or(SAMPLEFORMAT_UINT);
+    if (dtype != SAMPLEFORMAT_UINT && dtype != SAMPLEFORMAT_IEEEFP)
+        throw std::runtime_error{"Unsupported data type"};
 
-    switch (dtype) {
-    case SAMPLEFORMAT_UINT:
-        switch (bitdepth) {
-        case 8:
-            return DType::UInt8;
-        case 16:
-            return DType::UInt16;
-        case 32:
-            return DType::UInt32;
-        default:
-            throw std::runtime_error{"Unsupported bitdepth"
-                                     + std::to_string(bitdepth)};
-        }
-    case SAMPLEFORMAT_IEEEFP:
-        if (bitdepth == 32)
-            return DType::Float;
-        throw std::runtime_error{"Unsupported bitdepth" + std::to_string(bitdepth)};
-    default:
-        throw std::runtime_error{"Unsupported dtype"};
-    }
+    auto bitdepth = f.get<uint16_t>(TIFFTAG_BITSPERSAMPLE);
+    const auto is_compatible = [bitdepth, dtype](auto v) -> bool {
+        if (bitdepth != sizeof(v) * 8)
+            return false;
+        if constexpr(std::is_unsigned_v<decltype(v)>)
+            return dtype == SAMPLEFORMAT_UINT;
+        else
+            return dtype == SAMPLEFORMAT_IEEEFP;
+    };
+    for (auto&& res : {DType{uint8_t{}}, DType{uint16_t{}}, DType{uint32_t{}}, DType{float_t{}}})
+        if (std::visit(is_compatible, res))
+            return res;
+
+    throw std::runtime_error{"Unsupported bitdepth" + std::to_string(bitdepth)};
 }
 
 size_t get_samples(const io::tiff::File& f) {

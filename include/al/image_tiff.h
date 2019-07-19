@@ -13,17 +13,17 @@ class TiffImage final : public Image<TiffImage> {
     const uint16_t codec_ = 0;
 
     template <typename T>
-    Array<T> _read_typed_at(Level level, size_t iy, size_t ix) const;
+    Array<T> _read_at(Level level, size_t iy, size_t ix) const;
 
 public:
     TiffImage(const Path& path);
 
     template <typename T>
-    Array<T> _read_typed(const Box& box) const;
+    Array<T> _read(const Box& box) const;
 };
 
 template <typename T>
-Array<T> TiffImage::_read_typed_at(Level level, size_t iy, size_t ix) const {
+Array<T> TiffImage::_read_at(Level level, size_t iy, size_t ix) const {
     TIFFSetDirectory(this->file_, level);
     const auto& tshape = this->levels[level].tile_shape;
 
@@ -58,7 +58,7 @@ Array<T> TiffImage::_read_typed_at(Level level, size_t iy, size_t ix) const {
 }
 
 template <typename T>
-Array<T> TiffImage::_read_typed(const Box& box) const {
+Array<T> TiffImage::_read(const Box& box) const {
     const auto& tshape = this->levels[box.level].tile_shape;
     size_t min_[] = {
         floor(box.min_[0], tshape[0]),
@@ -73,7 +73,7 @@ Array<T> TiffImage::_read_typed(const Box& box) const {
 
     for (auto iy = min_[0]; iy < max_[0]; iy += tshape[0]) {
         for (auto ix = min_[1]; ix < max_[1]; ix += tshape[1]) {
-            Array<T> tile = this->_read_typed_at<T>(box.level, iy, ix);
+            Array<T> tile = this->_read_at<T>(box.level, iy, ix);
 
             auto t = tile.unchecked<3>();
             auto tys = std::max(box.min_[0], iy);
