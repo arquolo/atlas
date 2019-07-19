@@ -1,5 +1,3 @@
-#include <variant>
-
 #include "al/core/factory.h"
 #include "al/core/types.h"
 

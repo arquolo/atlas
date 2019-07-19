@@ -20,7 +20,7 @@ std::pair<Level, size_t> _Image::get_level(size_t scale) const noexcept {
     auto it = std::find_if(levels.begin(), levels.end(), [=](const LevelInfo& lv) {
         if (lv.shape.empty())
             return false;
-        return scale < get_scale(lv);
+        return scale <= get_scale(lv);
     });
     if (it == levels.begin())
         return {Level{0}, size_t{1}};

@@ -2,7 +2,9 @@
 
 #include <memory>
 #include <numeric>
+#include <optional>
 #include <type_traits>
+#include <variant>
 #include <vector>
 
 #include <pybind11/numpy.h>
@@ -47,6 +49,12 @@ auto to_array(Container&& cont, const Shape& shape);
 
 template <typename T>
 auto to_array(std::shared_ptr<const Array<T>> sptr);
+
+template <typename T, size_t N>
+auto as_tuple(const std::array<T, N>& array);
+
+template <typename Pred, typename... Ts>
+auto make_variant(Pred pred, std::variant<Ts...> var) -> std::optional<decltype(var)>;
 
 // -------------------------- function definitions --------------------------
 
@@ -94,6 +102,13 @@ auto _as_tuple(const std::array<T, N>& array, std::index_sequence<Is...>) {
 template <typename T, size_t N>
 auto as_tuple(const std::array<T, N>& array) {
     return _as_tuple(array, std::make_index_sequence<N>{});
+}
+
+template <typename Pred, typename... Ts>
+auto make_variant(Pred pred, std::variant<Ts...> var) -> std::optional<decltype(var)> {
+    if ((... || (pred(Ts{}) && ((var = Ts{}), true))))
+        return var;
+    return std::nullopt;
 }
 
 } // namespace al

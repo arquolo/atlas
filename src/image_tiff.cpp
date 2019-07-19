@@ -24,7 +24,7 @@ DType get_dtype(const io::tiff::File& f) {
         throw std::runtime_error{"Unsupported data type"};
 
     auto bitdepth = f.get<uint16_t>(TIFFTAG_BITSPERSAMPLE);
-    const auto is_compatible = [bitdepth, dtype](auto v) -> bool {
+    const auto is_compatible = [dtype, bitdepth](auto v) -> bool {
         if (bitdepth != sizeof(v) * 8)
             return false;
         if constexpr(std::is_unsigned_v<decltype(v)>)
@@ -32,11 +32,10 @@ DType get_dtype(const io::tiff::File& f) {
         else
             return dtype == SAMPLEFORMAT_IEEEFP;
     };
-    for (auto&& res : {DType{uint8_t{}}, DType{uint16_t{}}, DType{uint32_t{}}, DType{float_t{}}})
-        if (std::visit(is_compatible, res))
-            return res;
-
-    throw std::runtime_error{"Unsupported bitdepth" + std::to_string(bitdepth)};
+    auto opt = make_variant(is_compatible, DType{});
+    if (opt)
+        return opt.value();
+    throw std::runtime_error{"Unsupported bitdepth " + std::to_string(bitdepth)};
 }
 
 size_t get_samples(const io::tiff::File& f) {
