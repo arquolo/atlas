@@ -66,19 +66,18 @@ auto read_pyramid(const io::tiff::File& f, size_t samples) {
     if (level_count < 1)
         throw std::runtime_error{"Tiff have no levels"};
 
-    std::vector<LevelInfo> levels;
+    // TODO: make std::map<Scale, std::pair<Level, LevelInfo>>
+    std::map<Level, LevelInfo> levels;
     for (Level level = 0; level < level_count; ++level) {
         TIFFSetDirectory(f, level);
-        if (TIFFIsTiled(f)) {
-            LevelInfo lv{Shape{f.get<uint32_t>(TIFFTAG_IMAGELENGTH),
-                               f.get<uint32_t>(TIFFTAG_IMAGEWIDTH),
-                               samples},
-                         Shape{f.get<uint32_t>(TIFFTAG_TILELENGTH),
-                               f.get<uint32_t>(TIFFTAG_TILEWIDTH),
-                               samples}};
-            levels.emplace_back(std::move(lv));
-        } else
-            levels.emplace_back();
+        if (!TIFFIsTiled(f))
+            continue;
+        levels[level] = LevelInfo{Shape{f.get<uint32_t>(TIFFTAG_IMAGELENGTH),
+                                        f.get<uint32_t>(TIFFTAG_IMAGEWIDTH),
+                                        samples},
+                                  Shape{f.get<uint32_t>(TIFFTAG_TILELENGTH),
+                                        f.get<uint32_t>(TIFFTAG_TILEWIDTH),
+                                        samples}};
     }
     TIFFSetDirectory(f, 0);
     return levels;

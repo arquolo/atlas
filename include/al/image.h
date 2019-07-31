@@ -1,3 +1,5 @@
+#include <map>
+
 #include "al/core/factory.h"
 #include "al/core/types.h"
 
@@ -14,7 +16,7 @@ class _Image : public Factory<_Image> {
 public:
     DType dtype;
     size_t samples = 0;
-    std::vector<LevelInfo> levels = {};
+    std::map<Level, LevelInfo> levels = {};
 
     size_t get_scale(const LevelInfo& info) const noexcept;
     std::vector<size_t> scales() const noexcept;

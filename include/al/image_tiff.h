@@ -25,7 +25,7 @@ public:
 template <typename T>
 Array<T> TiffImage::_read_at(Level level, size_t iy, size_t ix) const {
     TIFFSetDirectory(this->file_, level);
-    const auto& tshape = this->levels[level].tile_shape;
+    const auto& tshape = this->levels.at(level).tile_shape;
 
     if (this->codec_ == 33005) { // Aperio SVS
         std::vector<uint8_t> buffer(TIFFTileSize(this->file_));
@@ -35,7 +35,7 @@ Array<T> TiffImage::_read_at(Level level, size_t iy, size_t ix) const {
             buffer.data(),
             buffer.size()
         ));
-        return io::jp2k::decode<T>(buffer, this->levels[level].tile_shape);
+        return io::jp2k::decode<T>(buffer, this->levels.at(level).tile_shape);
     }
     if (this->samples != 4) {
         auto tile = Array<T>(tshape);
@@ -59,12 +59,12 @@ Array<T> TiffImage::_read_at(Level level, size_t iy, size_t ix) const {
 
 template <typename T>
 Array<T> TiffImage::_read(const Box& box) const {
-    const auto& tshape = this->levels[box.level].tile_shape;
+    const auto& tshape = this->levels.at(box.level).tile_shape;
     size_t min_[] = {
         floor(box.min_[0], tshape[0]),
         floor(box.min_[1], tshape[1])
     };
-    const auto& shape = this->levels[box.level].shape;
+    const auto& shape = this->levels.at(box.level).shape;
     size_t max_[] {
         ceil(std::min(box.max_[0], shape[0]), tshape[0]),
         ceil(std::min(box.max_[1], shape[1]), tshape[1])

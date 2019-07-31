@@ -30,8 +30,8 @@ get_item(const _Image& self, std::tuple<py::slice, py::slice> slices) {
     return self.read({
         {(!y_min.is_none() ? y_min.cast<size_t>() / scale : 0),
          (!x_min.is_none() ? x_min.cast<size_t>() / scale : 0)},
-        {(!y_max.is_none() ? y_max.cast<size_t>() / scale : self.levels[level].shape[0]),
-         (!x_max.is_none() ? x_max.cast<size_t>() / scale : self.levels[level].shape[1])},
+        {(!y_max.is_none() ? y_max.cast<size_t>() / scale : self.levels.at(level).shape[0]),
+         (!x_max.is_none() ? x_max.cast<size_t>() / scale : self.levels.at(level).shape[1])},
         level
     });
 }
@@ -63,7 +63,7 @@ PYBIND11_MODULE(atlas, m) {
             "Data type")
         .def_property_readonly(
             "shape",
-            [](const _Image& self) { return al::as_tuple(self.levels.front().shape); },
+            [](const _Image& self) { return al::as_tuple(self.levels.at(0).shape); },
             "Shape")
         .def_property_readonly("scales", &_Image::scales, "Scales")
         .def("__getitem__", &get_item, py::arg("slices"))
