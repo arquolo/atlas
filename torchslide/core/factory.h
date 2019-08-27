@@ -4,9 +4,9 @@
 #include <string>
 #include <unordered_map>
 
-#include "al/core/path.h"
+#include "core/path.h"
 
-namespace al {
+namespace ts {
 
 template <class Base>
 class Factory {
@@ -31,8 +31,6 @@ public:
 
     template <class Derived>
     class Register : public Base {
-        static bool is_registered;
-
         static bool register_this() {
             static_assert(std::is_base_of_v<Register<Derived>, Derived>,
                           "Unregistered!!");
@@ -44,14 +42,11 @@ public:
             return true;
         }
 
+        inline static bool is_registered = register_this();
+
     public:
         Register() { (void)is_registered; }
     };
 };
 
-template <class Base>
-template <class Derived>
-bool Factory<Base>::Register<Derived>::is_registered
-    = Factory<Base>::Register<Derived>::register_this();
-
-} // namespace al
+} // namespace ts

@@ -1,9 +1,9 @@
 #include <optional>
 
-#include "tiffio.h"
+#include <tiffio.h>
 
-#include "al/image_tiff.h"
-#include "al/io/jpeg2000.h"
+#include "image_tiff.h"
+#include "io/jpeg2000.h"
 
 // TIFFImage::TIFFImage(std::filesystem::path const& path): Image{path} {
 //     TIFFSetDirectory(tiff_, 0);
@@ -15,7 +15,7 @@
 //         spacing_.push_back(10000. / spacing_x);
 // }
 
-namespace al {
+namespace ts {
 namespace detail {
 
 DType get_dtype(const io::tiff::File& f) {
@@ -107,4 +107,4 @@ TiffImage::TiffImage(const Path& path)
     dtype = detail::get_dtype(file_);
 }
 
-} // namespace al
+} // namespace ts

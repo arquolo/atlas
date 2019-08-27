@@ -1,6 +1,6 @@
-#include "al/image.h"
+#include "image.h"
 
-namespace al {
+namespace ts {
 
 size_t _Image::get_scale(const LevelInfo& info) const noexcept {
     return static_cast<size_t>(
@@ -24,4 +24,4 @@ std::pair<Level, size_t> _Image::get_level(size_t scale) const noexcept {
     return {it->first, get_scale(it->second)};
 }
 
-} // namespace al
+} // namespace ts

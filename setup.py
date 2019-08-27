@@ -1,9 +1,20 @@
+import os
+import sys
 from dataclasses import dataclass
 from functools import wraps
 from pathlib import Path
 
 import setuptools
 from setuptools.command.build_ext import build_ext
+
+PACKAGE = 'torchslide'
+PLATFORM = os.name if 'bdist_wheel' in sys.argv else ''
+print(PLATFORM)
+
+
+class BinaryDistribution(setuptools.Distribution):
+    def has_ext_modules(self):
+        return bool(PLATFORM)
 
 
 def patch_init(cls):
@@ -62,38 +73,50 @@ class BuildExt(build_ext):
 
 
 setuptools.setup(
-    name='atlas',
-    version='0.0.1',
+    name=f'{PACKAGE}-any',
+    version='0.0.2',
     author='Paul Maevskikh',
     author_email='arquolo@gmail.com',
-    url='https://github.com/arquolo/atlas',
+    url=f'https://github.com/arquolo/{PACKAGE}',
     description='Library for read/write access to large image files',
     long_description='',
     packages=setuptools.find_packages(),
+    ext_package=PACKAGE,
     ext_modules=[
         setuptools.Extension(
-            'atlas',
+            PACKAGE,
             [
-                'src/io/jpeg2000.cpp',
-                'src/io/tiff.cpp',
-                'src/image.cpp',
-                'src/image_tiff.cpp',
-                'src/main.cpp',
-                # 'src/writer.cpp',
+                f'{PACKAGE}/io/jpeg2000.cpp',
+                f'{PACKAGE}/io/tiff.cpp',
+                f'{PACKAGE}/image.cpp',
+                f'{PACKAGE}/image_tiff.cpp',
+                f'{PACKAGE}/main.cpp',
+                # f'{PACKAGE}/writer.cpp',
             ],
-            # list(map(str, Path(__file__).parent.glob('src/*.cpp'))),
+            # list(map(str, Path(__file__).parent.glob(f'{PACKAGE}/*.cpp'))),
             include_dirs=[
                 # PyBindInclude(),
                 PyBindInclude(user=True),
-                './include',
+                f'./{PACKAGE}',
                 './__dependencies__/include',
             ],
-            library_dirs=['./__dependencies__/lib'],
+            library_dirs=['__dependencies__/lib'],
             libraries=['openjp2', 'tiff'],
             language='c++'
         ),
     ],
+    package_data={
+        '': ['*.dll', '*.pyd'] if PLATFORM == 'nt' else ['*.so'],
+    },
     install_requires=['pybind11>=2.2'],
+    classifiers=[
+        'Development Status :: 3 - Alpha',
+        'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 3.7',
+        'License :: OSI Approved :: MIT License',
+        'Operating System :: Microsoft :: Windows',
+        'Operating System :: POSIX :: Linux',
+    ],
     cmdclass={'build_ext': BuildExt},
-    zip_safe=False,
+    distclass=BinaryDistribution,
 )

@@ -1,9 +1,11 @@
+#pragma once
+
 #include <map>
 
-#include "al/core/factory.h"
-#include "al/core/types.h"
+#include "core/factory.h"
+#include "core/types.h"
 
-namespace al {
+namespace ts {
 
 using DType = std::variant<uint8_t, uint16_t, uint32_t, float>;
 
@@ -43,4 +45,4 @@ public:
     Array<T> _read(const Box& box) const;
 };
 
-} // namespace al
+} // namespace ts

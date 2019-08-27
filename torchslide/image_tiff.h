@@ -1,10 +1,11 @@
 #pragma once
 
-#include "al/io/tiff.h"
-#include "al/io/jpeg2000.h"
-#include "al/image.h"
+#include "io/tiff.h"
+#include "io/tiff.h"
+#include "io/jpeg2000.h"
+#include "image.h"
 
-namespace al {
+namespace ts {
 
 class TiffImage final : public Image<TiffImage> {
     static inline constexpr const char* extensions[] = {".svs", ".tif", ".tiff"};
@@ -96,4 +97,4 @@ Array<T> TiffImage::_read(const Box& box) const {
     return result;
 }
 
-} // namespace al
+} // namespace ts

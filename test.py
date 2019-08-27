@@ -1,4 +1,4 @@
-import atlas
+import torchslide as ts
 import numpy as np
 from matplotlib import pyplot as P
 
@@ -7,7 +7,7 @@ for ext in ('tif', 'svs'):
     filename = f'../test.{ext}'
     print(filename)
 
-    x = atlas.Image(filename)
+    x = ts.Image(filename)
     print(x.shape, x.scales)
 
     for scale in x.scales:

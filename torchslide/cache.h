@@ -28,7 +28,7 @@ struct lambda<Ret(Cls::*)(Args...) const> : _lambda_types<Ret, Cls, Args...> {};
 
 } // namespace traits
 
-namespace al {
+namespace ts {
 
 template <typename Fn>
 class Cache {
@@ -119,4 +119,4 @@ public:
     }
 };
 
-} // namespace al
+} // namespace ts

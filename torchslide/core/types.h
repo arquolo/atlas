@@ -13,7 +13,7 @@
 
 namespace py = pybind11;
 
-namespace al {
+namespace ts {
 
 // ---------------------------------- types ----------------------------------
 
@@ -112,7 +112,7 @@ auto make_variant(Pred pred, std::variant<Ts...> var) -> std::optional<decltype(
     return std::nullopt;
 }
 
-} // namespace al
+} // namespace ts
 
 // template<typename ...Args>
 // void print_(Args&&... args) {

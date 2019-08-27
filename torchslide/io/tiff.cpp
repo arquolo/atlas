@@ -1,6 +1,6 @@
-#include "al/io/tiff.h"
+#include "io/tiff.h"
 
-namespace al::io::tiff {
+namespace ts::io::tiff {
 
 auto tiff_open(const Path& path, const std::string& flags) {
 #ifdef _WIN32
@@ -27,4 +27,4 @@ uint32_t File::tiles() const noexcept { return TIFFNumberOfTiles(*this); }
 
 // void File::write_directory () noexcept { TIFFWriteDirectory(*this); }
 
-} // namespace al::io::tiff
+} // namespace ts::io::tiff

@@ -1,0 +1,4 @@
+include torchslide/*.h
+include torchslide/*.cpp
+include torchslide/**/*.h
+include torchslide/**/*.cpp

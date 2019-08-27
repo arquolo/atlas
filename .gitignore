@@ -2,10 +2,13 @@ __pycache__
 __dependencies__
 build
 dist
+*.egg-info
+
 .pytest_cache
 .vscode
 .ipynb_checkpoints
+
 *.so
 *.dll
 *.py[cod]
-*.egg-info
+*$py.class

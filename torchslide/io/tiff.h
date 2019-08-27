@@ -1,3 +1,5 @@
+#pragma once
+
 #include <memory>
 #include <optional>
 #include <stdexcept>
@@ -5,9 +7,9 @@
 
 #include "tiffio.h"
 
-#include "al/core/path.h"
+#include "core/path.h"
 
-namespace al::io::tiff {
+namespace ts::io::tiff {
 
 template <typename T>
 struct Allocator {
@@ -104,4 +106,4 @@ public:
     // void write_directory() noexcept;
 };
 
-} // namespace al::io::tiff
+} // namespace ts::io::tiff

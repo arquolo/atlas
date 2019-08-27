@@ -1,13 +1,13 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
-#include "al/image.h"
+#include "image.h"
 
 #ifndef VERSION_INFO
 #define VERSION_INFO "dev"
 #endif
 
-using namespace al;
+using namespace ts;
 
 py::buffer
 get_item(const _Image& self, std::tuple<py::slice, py::slice> slices) {
@@ -36,8 +36,9 @@ get_item(const _Image& self, std::tuple<py::slice, py::slice> slices) {
     });
 }
 
-PYBIND11_MODULE(atlas, m) {
+PYBIND11_MODULE(torchslide, m) {
     m.attr("__version__") = VERSION_INFO;
+    m.attr("__all__") = py::make_tuple("Bitstream", "Interpolation", "Image");
 
     py::enum_<Bitstream>(m, "Bitstream")
         .value("RAW", Bitstream::RAW)
@@ -63,7 +64,7 @@ PYBIND11_MODULE(atlas, m) {
             "Data type")
         .def_property_readonly(
             "shape",
-            [](const _Image& self) { return al::as_tuple(self.levels.at(0).shape); },
+            [](const _Image& self) { return ts::as_tuple(self.levels.at(0).shape); },
             "Shape")
         .def_property_readonly("scales", &_Image::scales, "Scales")
         .def("__getitem__", &get_item, py::arg("slices"))

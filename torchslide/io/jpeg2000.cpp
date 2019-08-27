@@ -1,7 +1,7 @@
-#include "openjpeg.h"
-#include "opj_config.h"
+#include <openjpeg.h>
+#include <opj_config.h>
 
-#include "al/io/jpeg2000.h"
+#include "io/jpeg2000.h"
 
 namespace std {
 template <typename T, typename Deleter>
@@ -107,7 +107,7 @@ auto create_default_memory_stream(stream_t* stream, OPJ_BOOL readable) {
 
 } // namespace
 
-namespace al::io::jp2k {
+namespace ts::io::jp2k {
 
 std::vector<uint8_t> _decode(const std::vector<uint8_t>& buf) {
     // set up the input buffer as a stream
@@ -142,7 +142,7 @@ std::vector<uint8_t> _decode(const std::vector<uint8_t>& buf) {
     opj_end_decompress(decoder, l_stream.get());
 
     // get the total uncompressed length
-    uint32_t bitdepth = al::ceil(image->comps[0].prec, 8u);
+    uint32_t bitdepth = ts::ceil(image->comps[0].prec, 8u);
     uint32_t pixels = (image->comps[0].w * image->comps[0].h);
 
     std::vector<const OPJ_INT32*> cmp_iters(image->numcomps, nullptr);
@@ -232,7 +232,7 @@ std::vector<uint8_t> encode(py::buffer data, size_t rate) {
         cmp_iters[cmp] = (OPJ_INT32*)(image->comps[cmp].data);
 
     // set the color stuff.
-    auto bitdepth = al::ceil(components[0].bpp, 8u);
+    auto bitdepth = ts::ceil(components[0].bpp, 8u);
     auto* it = (uint8_t*)info.ptr;
     for (ssize_t pixel = 0; pixel < info.size / info.shape[2]; ++pixel)
         for (OPJ_INT32*& cmp_iter : cmp_iters) {
@@ -253,4 +253,4 @@ std::vector<uint8_t> encode(py::buffer data, size_t rate) {
     return std::vector<uint8_t>(buffer.data, buffer.data + buffer.offset + 1);
 }
 
-} // namespace al::io::jp2k
+} // namespace ts::io::jp2k
