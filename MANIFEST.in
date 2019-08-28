@@ -1,4 +1,4 @@
-include torchslide/*.h
-include torchslide/*.cpp
-include torchslide/**/*.h
-include torchslide/**/*.cpp
+graft torchslide
+
+global-exclude *.py[cdo]
+global-exclude *.dll

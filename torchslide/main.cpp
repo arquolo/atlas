@@ -27,7 +27,7 @@ get_item(const _Image& self, std::tuple<py::slice, py::slice> slices) {
 
     auto [level, scale] = self.get_level(y_step);
 
-    return self.read({
+    return self.read_any({
         {(!y_min.is_none() ? y_min.cast<size_t>() / scale : 0),
          (!x_min.is_none() ? x_min.cast<size_t>() / scale : 0)},
         {(!y_max.is_none() ? y_max.cast<size_t>() / scale : self.levels.at(level).shape[0]),

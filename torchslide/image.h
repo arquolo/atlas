@@ -25,7 +25,7 @@ public:
 
     std::pair<Level, size_t> get_level(size_t scale) const noexcept;
 
-    virtual py::buffer read(const Box& box) const = 0;
+    virtual py::buffer read_any(const Box& box) const = 0;
 };
 
 template <class Impl>
@@ -33,16 +33,16 @@ class Image : public _Image::Register<Impl> {
     auto* derived() const noexcept { return static_cast<const Impl*>(this); }
 
 public:
-    py::buffer read(const Box& box) const final {
+    py::buffer read_any(const Box& box) const final {
         return std::visit(
             [this, &box](auto v) -> py::buffer {
-                return this->derived()->template _read<decltype(v)>(box);
+                return this->derived()->template read<decltype(v)>(box);
             },
             this->dtype);
     }
 
     template <typename T>
-    Array<T> _read(const Box& box) const;
+    Array<T> read(const Box& box) const;
 };
 
 } // namespace ts

@@ -32,7 +32,7 @@ DType get_dtype(const io::tiff::File& f) {
         else
             return dtype == SAMPLEFORMAT_IEEEFP;
     };
-    auto opt = make_variant(is_compatible, DType{});
+    auto opt = make_variant_if(is_compatible, DType{});
     if (opt)
         return opt.value();
     throw std::runtime_error{"Unsupported bitdepth " + std::to_string(bitdepth)};

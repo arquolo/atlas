@@ -55,7 +55,7 @@ template <typename T, size_t N>
 auto as_tuple(const std::array<T, N>& array);
 
 template <typename Pred, typename... Ts>
-auto make_variant(Pred pred, std::variant<Ts...> var) -> std::optional<decltype(var)>;
+auto make_variant_if(Pred pred, std::variant<Ts...> var) -> std::optional<decltype(var)>;
 
 // -------------------------- function definitions --------------------------
 
@@ -106,7 +106,7 @@ auto as_tuple(const std::array<T, N>& array) {
 }
 
 template <typename Pred, typename... Ts>
-auto make_variant(Pred pred, std::variant<Ts...> var) -> std::optional<decltype(var)> {
+auto make_variant_if(Pred pred, std::variant<Ts...> var) -> std::optional<decltype(var)> {
     if ((... || (pred(Ts{}) && ((var = Ts{}), true))))
         return var;
     return std::nullopt;

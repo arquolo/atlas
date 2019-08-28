@@ -1,6 +1,5 @@
 import os
 import sys
-from dataclasses import dataclass
 from functools import wraps
 from pathlib import Path
 
@@ -8,13 +7,11 @@ import setuptools
 from setuptools.command.build_ext import build_ext
 
 PACKAGE = 'torchslide'
-PLATFORM = os.name if 'bdist_wheel' in sys.argv else ''
-print(PLATFORM)
 
 
 class BinaryDistribution(setuptools.Distribution):
     def has_ext_modules(self):
-        return bool(PLATFORM)
+        return True
 
 
 def patch_init(cls):
@@ -36,9 +33,9 @@ def patch_init(cls):
     cls.initialize = wraps(initialize)(wrapper)
 
 
-@dataclass
 class PyBindInclude:
-    user: bool = False
+    def __init__(self, user=False):
+        self.user = user
 
     def __str__(self):
         import pybind11
@@ -52,7 +49,7 @@ class BuildExt(build_ext):
         options = {
             'unix': (
                 [f'-DVERSION_INFO="{self.distribution.get_version()}"',
-                 '-std=c++20',
+                 '-std=c++17',
                  '-fvisibility=hidden',
                  '-O3'],
                 (lambda cls: None)),
@@ -74,7 +71,7 @@ class BuildExt(build_ext):
 
 setuptools.setup(
     name=f'{PACKAGE}-any',
-    version='0.0.2',
+    version='0.0.4',
     author='Paul Maevskikh',
     author_email='arquolo@gmail.com',
     url=f'https://github.com/arquolo/{PACKAGE}',
@@ -106,7 +103,7 @@ setuptools.setup(
         ),
     ],
     package_data={
-        '': ['*.dll', '*.pyd'] if PLATFORM == 'nt' else ['*.so'],
+        '': ['*.dll', '*.pyd'] if os.name == 'nt' else ['*.so'],
     },
     install_requires=['pybind11>=2.2'],
     classifiers=[
