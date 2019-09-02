@@ -10,7 +10,7 @@
 using namespace ts;
 
 py::buffer
-get_item(const _Image& self, std::tuple<py::slice, py::slice> slices) {
+get_item(const abc::Image& self, std::tuple<py::slice, py::slice> slices) {
     const auto& [ys, xs] = slices;
 
     auto y_min = ys.attr("start");
@@ -52,11 +52,11 @@ PYBIND11_MODULE(torchslide, m) {
         .value("Linear", Interpolation::Linear)
         ;
 
-    py::class_<_Image>(m, "Image")
-        .def(py::init(&_Image::make), py::arg("path"))
+    py::class_<abc::Image>(m, "Image")
+        .def(py::init(&abc::Image::make), py::arg("path"))
         .def_property_readonly(
             "dtype",
-            [](const _Image& self) {
+            [](const abc::Image& self) {
                 return std::visit([](auto v) {
                     return py::dtype::of<decltype(v)>();
                 }, self.dtype);
@@ -64,9 +64,9 @@ PYBIND11_MODULE(torchslide, m) {
             "Data type")
         .def_property_readonly(
             "shape",
-            [](const _Image& self) { return ts::as_tuple(self.levels.at(0).shape); },
+            [](const abc::Image& self) { return ts::as_tuple(self.levels.at(0).shape); },
             "Shape")
-        .def_property_readonly("scales", &_Image::scales, "Scales")
+        .def_property_readonly("scales", &abc::Image::scales, "Scales")
         .def("__getitem__", &get_item, py::arg("slices"))
         ;
 }

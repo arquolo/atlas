@@ -14,7 +14,9 @@ struct LevelInfo {
     Shape tile_shape;
 };
 
-class _Image : public Factory<_Image> {
+namespace abc {
+
+class Image : public Factory<Image> {
 public:
     DType dtype;
     size_t samples = 0;
@@ -28,8 +30,10 @@ public:
     virtual py::buffer read_any(const Box& box) const = 0;
 };
 
+} // namespace abc
+
 template <class Impl>
-class Image : public _Image::Register<Impl> {
+class Image : public abc::Image::Register<Impl> {
     auto* derived() const noexcept { return static_cast<const Impl*>(this); }
 
 public:
