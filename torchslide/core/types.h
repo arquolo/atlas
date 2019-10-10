@@ -108,7 +108,7 @@ auto as_tuple(const std::array<T, N>& array) {
 template <typename Pred, typename... Ts>
 auto make_variant_if(Pred pred, std::variant<Ts...> var) -> std::optional<decltype(var)> {
     if ((... || (pred(Ts{}) && ((var = Ts{}), true))))
-        return var;
+        return std::move(var);
     return std::nullopt;
 }
 
