@@ -24,4 +24,6 @@ std::pair<Level, size_t> Image::get_level(size_t scale) const noexcept {
     return {it->first, get_scale(it->second)};
 }
 
+Image::~Image() noexcept {}
+
 } // namespace ts::abc

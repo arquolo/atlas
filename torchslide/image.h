@@ -28,6 +28,7 @@ public:
     std::pair<Level, size_t> get_level(size_t scale) const noexcept;
 
     virtual py::buffer read_any(const Box& box) const = 0;
+    virtual ~Image() noexcept;
 };
 
 } // namespace abc
