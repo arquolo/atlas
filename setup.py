@@ -71,12 +71,13 @@ class BuildExt(build_ext):
 
 setuptools.setup(
     name=f'{PACKAGE}-any',
-    version='0.0.7',
+    version='0.0.8',
     author='Paul Maevskikh',
     author_email='arquolo@gmail.com',
     url=f'https://github.com/arquolo/{PACKAGE}',
     description=f'{PACKAGE}-any - source version or {PACKAGE} for Python 3.6+',
     long_description=Path('README.md').read_text(),
+    long_description_content_type='text/markdown',
     packages=setuptools.find_packages(),
     ext_package=PACKAGE,
     ext_modules=[
