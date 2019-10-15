@@ -75,8 +75,8 @@ setuptools.setup(
     author='Paul Maevskikh',
     author_email='arquolo@gmail.com',
     url=f'https://github.com/arquolo/{PACKAGE}',
-    description='Library for read/write access to large image files',
-    long_description='',
+    description=f'{PACKAGE}-any - source version or {PACKAGE} for Python 3.6+',
+    long_description=Path('README.md').read_text(),
     packages=setuptools.find_packages(),
     ext_package=PACKAGE,
     ext_modules=[
