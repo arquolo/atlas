@@ -1,24 +1,30 @@
-#include <optional>
-
-#include <tiffio.h>
-
 #include "image_tiff.h"
-#include "io/jpeg2000.h"
 
-// TIFFImage::TIFFImage(std::filesystem::path const& path): Image{path} {
-//     TIFFSetDirectory(tiff_, 0);
-//     float spacing_y;
-//     float spacing_x;
-//     if (TIFFGetField(tiff_, TIFFTAG_YRESOLUTION, &spacing_y) == 1)
-//         spacing_.push_back(10000. / spacing_y);
-//     if (TIFFGetField(tiff_, TIFFTAG_XRESOLUTION, &spacing_x) == 1)
-//         spacing_.push_back(10000. / spacing_x);
-// }
+namespace ts::tiff {
 
-namespace ts {
-namespace detail {
+auto tiff_open(const Path& path, const std::string& flags) {
+#ifdef _WIN32
+    auto open_fn = TIFFOpenW;
+#else
+    auto open_fn = TIFFOpen;
+#endif
+    TIFFSetErrorHandler(nullptr);
+    auto ptr_ = open_fn(path.c_str(), flags.c_str());
+    if (ptr_)
+        return std::unique_ptr<TIFF, void (*)(TIFF*)>{ptr_, TIFFClose};
+    throw std::runtime_error{"Failed to open: " + path.generic_string()};
+}
 
-DType get_dtype(const io::tiff::File& f) {
+File::File(const Path& path, const std::string& flags)
+  : ptr_{tiff_open(path, flags)} {}
+
+uint32_t File::position(uint32_t iy, uint32_t ix) const noexcept {
+    return TIFFComputeTile(*this, ix, iy, 0, 0);
+}
+
+uint32_t File::tiles() const noexcept { return TIFFNumberOfTiles(*this); }
+
+DType _get_dtype(const File& f) {
     auto dtype = f.try_get<uint16_t>(TIFFTAG_SAMPLEFORMAT).value_or(SAMPLEFORMAT_UINT);
     if (dtype != SAMPLEFORMAT_UINT && dtype != SAMPLEFORMAT_IEEEFP)
         throw std::runtime_error{"Unsupported data type"};
@@ -38,7 +44,7 @@ DType get_dtype(const io::tiff::File& f) {
     throw std::runtime_error{"Unsupported bitdepth " + std::to_string(bitdepth)};
 }
 
-size_t get_samples(const io::tiff::File& f) {
+Size _get_samples(const File& f) {
     auto ctype = f.get<uint16_t>(TIFFTAG_PHOTOMETRIC);
     switch (ctype) {
     case PHOTOMETRIC_MINISBLACK: {
@@ -60,7 +66,7 @@ size_t get_samples(const io::tiff::File& f) {
     }
 }
 
-auto read_pyramid(const io::tiff::File& f, size_t samples) {
+auto _read_pyramid(const File& f, Size samples) {
     TIFFSetDirectory(f, 0);
     Level level_count = TIFFNumberOfDirectories(f);
     if (level_count < 1)
@@ -72,18 +78,16 @@ auto read_pyramid(const io::tiff::File& f, size_t samples) {
         TIFFSetDirectory(f, level);
         if (!TIFFIsTiled(f))
             continue;
-        levels[level] = LevelInfo{Shape{f.get<uint32_t>(TIFFTAG_IMAGELENGTH),
-                                        f.get<uint32_t>(TIFFTAG_IMAGEWIDTH),
-                                        samples},
-                                  Shape{f.get<uint32_t>(TIFFTAG_TILELENGTH),
-                                        f.get<uint32_t>(TIFFTAG_TILEWIDTH),
-                                        samples}};
+        levels[level] = LevelInfo{{f.get<uint32_t>(TIFFTAG_IMAGELENGTH),
+                                   f.get<uint32_t>(TIFFTAG_IMAGEWIDTH),
+                                   samples},
+                                  {f.get<uint32_t>(TIFFTAG_TILELENGTH),
+                                   f.get<uint32_t>(TIFFTAG_TILEWIDTH),
+                                   samples}};
     }
     TIFFSetDirectory(f, 0);
     return levels;
 }
-
-} // namespace detail
 
 TiffImage::TiffImage(const Path& path)
   : file_{path, "rm"}
@@ -102,9 +106,9 @@ TiffImage::TiffImage(const Path& path)
     if (file_.get<uint16_t>(TIFFTAG_PLANARCONFIG) != PLANARCONFIG_CONTIG)
         throw std::runtime_error{"Tiff is not contiguous"};
 
-    samples = detail::get_samples(file_);
-    levels = detail::read_pyramid(file_, samples);
-    dtype = detail::get_dtype(file_);
+    samples = _get_samples(file_);
+    levels = _read_pyramid(file_, samples);
+    dtype = _get_dtype(file_);
 }
 
-} // namespace ts
+} // namespace ts::tiff

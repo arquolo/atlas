@@ -20,18 +20,19 @@ get_item(const abc::Image& self, std::tuple<py::slice, py::slice> slices) {
     auto y_step_ = ys.attr("step");
     auto x_step_ = xs.attr("step");
 
-    size_t y_step = (!y_step_.is_none()) ? y_step_.cast<size_t>() : 1;
-    size_t x_step = (!x_step_.is_none()) ? x_step_.cast<size_t>() : 1;
+    size_t y_step = (!y_step_.is_none()) ? y_step_.cast<Size>() : 1;
+    size_t x_step = (!x_step_.is_none()) ? x_step_.cast<Size>() : 1;
     if (y_step != x_step)
         throw std::runtime_error{"Y and X steps must be equal"};
 
-    auto [level, scale] = self.get_level(y_step);
+    const auto& [level, info] = self.get_level(y_step);
+    auto scale = self.get_scale(info);
 
     return self.read_any({
-        {(!y_min.is_none() ? y_min.cast<size_t>() / scale : 0),
-         (!x_min.is_none() ? x_min.cast<size_t>() / scale : 0)},
-        {(!y_max.is_none() ? y_max.cast<size_t>() / scale : self.levels.at(level).shape[0]),
-         (!x_max.is_none() ? x_max.cast<size_t>() / scale : self.levels.at(level).shape[1])},
+        {(!y_min.is_none() ? y_min.cast<Size>() / scale : 0),
+         (!x_min.is_none() ? x_min.cast<Size>() / scale : 0)},
+        {(!y_max.is_none() ? y_max.cast<Size>() / scale : info.shape[0]),
+         (!x_max.is_none() ? x_max.cast<Size>() / scale : info.shape[1])},
         level
     });
 }

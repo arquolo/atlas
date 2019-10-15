@@ -20,7 +20,7 @@ void null_callback(const char*, void*) {}
 
 static void stream_no_op(void*) {}
 
-//This will read from p_buffer to the stream.
+// this will read from p_buffer to the stream
 static OPJ_SIZE_T stream_read(void* buffer, OPJ_SIZE_T bytes, void* data) {
     auto* stream = (stream_t*) data;
     OPJ_SIZE_T data_end_offset = stream->size - 1;
@@ -38,7 +38,7 @@ static OPJ_SIZE_T stream_read(void* buffer, OPJ_SIZE_T bytes, void* data) {
     return bytes_read;
 }
 
-// this will write from the stream to p_buffer.
+// this will write from the stream to p_buffer
 static OPJ_SIZE_T stream_write(void* buffer, OPJ_SIZE_T bytes, void* data) {
     auto* stream = (stream_t*)data;
     OPJ_SIZE_T data_end_offset = stream->size - 1;
@@ -56,7 +56,7 @@ static OPJ_SIZE_T stream_write(void* buffer, OPJ_SIZE_T bytes, void* data) {
     return bytes_write;
 }
 
-//Moves the current offset forward, but never more than size.
+// moves the current offset forward, but never more than size
 static OPJ_OFF_T stream_skip(OPJ_OFF_T bytes, void* data) {
     if (bytes < 0)
         return -1;
@@ -71,7 +71,7 @@ static OPJ_OFF_T stream_skip(OPJ_OFF_T bytes, void* data) {
     return bytes_skip;
 }
 
-//Sets the offset to anywhere in the stream.
+// sets the offset to anywhere in the stream.
 static OPJ_BOOL stream_seek(OPJ_OFF_T bytes, void* data) {
     if (bytes < 0)
         return OPJ_FALSE; // not before the buffer

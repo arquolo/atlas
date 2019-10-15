@@ -19,13 +19,13 @@ namespace abc {
 class Image : public Factory<Image> {
 public:
     DType dtype;
-    size_t samples = 0;
+    Size samples = 0;
     std::map<Level, LevelInfo> levels = {};
 
-    size_t get_scale(const LevelInfo& info) const noexcept;
-    std::vector<size_t> scales() const noexcept;
+    Size get_scale(const LevelInfo& info) const noexcept;
+    std::vector<Size> scales() const noexcept;
 
-    std::pair<Level, size_t> get_level(size_t scale) const noexcept;
+    std::pair<Level, LevelInfo> get_level(Size scale) const noexcept;
 
     virtual py::buffer read_any(const Box& box) const = 0;
     virtual ~Image() noexcept;

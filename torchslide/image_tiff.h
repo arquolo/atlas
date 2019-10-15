@@ -1,20 +1,51 @@
 #pragma once
 
-#include "io/tiff.h"
-#include "io/tiff.h"
-#include "io/jpeg2000.h"
-#include "image.h"
+#include <memory>
+#include <optional>
+#include <stdexcept>
+#include <vector>
 
-namespace ts {
+#include <tiffio.h>
+
+#include "core/path.h"
+#include "image.h"
+#include "io/jpeg2000.h"
+
+namespace ts::tiff {
+
+// ------------------------------ declarations ------------------------------
+
+class File {
+    std::unique_ptr<TIFF, void (*)(TIFF*)> ptr_;
+
+public:
+    File(const Path& path, const std::string& flags);
+
+    /// for compatibility
+    inline operator TIFF*() noexcept { return ptr_.get(); }
+    inline operator TIFF*() const noexcept { return ptr_.get(); }
+
+    uint32_t position(uint32_t iy, uint32_t ix) const noexcept;
+    uint32_t tiles() const noexcept;
+
+    template <typename T>
+    T get(uint32 tag) const;
+
+    template <typename T>
+    std::optional<T> try_get(uint32 tag) const noexcept;
+
+    template <typename T>
+    std::optional<T> get_defaulted(uint32 tag) const noexcept;
+};
 
 class TiffImage final : public Image<TiffImage> {
     static inline constexpr const char* extensions[] = {".svs", ".tif", ".tiff"};
 
-    const io::tiff::File file_;
+    const File file_;
     const uint16_t codec_ = 0;
 
     template <typename T>
-    Array<T> read_at(Level level, size_t iy, size_t ix) const;
+    Array<T> read_at(Level level, uint32_t iy, uint32_t ix) const;
 
 public:
     TiffImage(const Path& path);
@@ -23,8 +54,33 @@ public:
     Array<T> read(const Box& box) const;
 };
 
+// ------------------------------ definitions ------------------------------
+
 template <typename T>
-Array<T> TiffImage::read_at(Level level, size_t iy, size_t ix) const {
+T File::get(uint32 tag) const {
+    T value = {};
+    TIFFGetField(*this, tag, &value);
+    return value;
+}
+
+template <typename T>
+std::optional<T> File::try_get(uint32 tag) const noexcept {
+    T value = {};
+    if (TIFFGetField(*this, tag, &value))
+        return value;
+    return {};
+}
+
+template <typename T>
+std::optional<T> File::get_defaulted(uint32 tag) const noexcept {
+    T value = {};
+    if (TIFFGetFieldDefaulted(*this, tag, &value))
+        return value;
+    return {};
+}
+
+template <typename T>
+Array<T> TiffImage::read_at(Level level, uint32_t iy, uint32_t ix) const {
     TIFFSetDirectory(this->file_, level);
     const auto& tshape = this->levels.at(level).tile_shape;
 
@@ -45,12 +101,8 @@ Array<T> TiffImage::read_at(Level level, size_t iy, size_t ix) const {
         return tile;
     }
 
-    std::vector<ssize_t> shape{
-        (ssize_t)tshape[0], (ssize_t)tshape[1], (ssize_t)tshape[2]};
-    std::vector<ssize_t> strides{
-        -(ssize_t)tshape[1] * (ssize_t)tshape[2],
-        +(ssize_t)tshape[2],
-        1};
+    Size shape[] = {tshape[0], tshape[1], tshape[2]};
+    Size strides[] = {-tshape[2] * tshape[1], tshape[2], 1};
     py::array_t<T> tile{shape, strides};
 
     auto info = tile.request();
@@ -60,41 +112,46 @@ Array<T> TiffImage::read_at(Level level, size_t iy, size_t ix) const {
 
 template <typename T>
 Array<T> TiffImage::read(const Box& box) const {
+    Array<T> result{{box.shape(0), box.shape(1), this->samples}};
+
     const auto& tshape = this->levels.at(box.level).tile_shape;
-    size_t min_[] = {
-        floor(box.min_[0], tshape[0]),
-        floor(box.min_[1], tshape[1])
+    Size min_[] = {
+        floor(std::max(box.min_[0], Size{0}), tshape[0]),
+        floor(std::max(box.min_[1], Size{0}), tshape[1]),
     };
     const auto& shape = this->levels.at(box.level).shape;
-    size_t max_[] {
+    Size max_[] {
         ceil(std::min(box.max_[0], shape[0]), tshape[0]),
-        ceil(std::min(box.max_[1], shape[1]), tshape[1])
+        ceil(std::min(box.max_[1], shape[1]), tshape[1]),
     };
-    Array<T> result{{box.shape(0), box.shape(1), this->samples}};
 
     for (auto iy = min_[0]; iy < max_[0]; iy += tshape[0]) {
         for (auto ix = min_[1]; ix < max_[1]; ix += tshape[1]) {
-            Array<T> tile = this->read_at<T>(box.level, iy, ix);
+            Array<T> tile = this->read_at<T>(
+                box.level,
+                static_cast<uint32_t>(iy),
+                static_cast<uint32_t>(ix)
+            );
 
             auto t = tile.unchecked<3>();
-            auto tys = std::max(box.min_[0], iy);
-            auto txs = std::max(box.min_[1], ix);
-            auto tye = std::min(box.max_[0], iy + tshape[0]);
-            auto txe = std::min(box.max_[1], ix + tshape[1]);
+            auto ty_begin = std::max(box.min_[0], iy);
+            auto tx_begin = std::max(box.min_[1], ix);
+            auto ty_end = std::min({box.max_[0], iy + tshape[0], shape[0]});
+            auto tx_end = std::min({box.max_[1], ix + tshape[1], shape[1]});
 
-            auto r = result.mutable_unchecked<3>();
-            auto ry = tys - box.min_[0];
-            auto rx = txs - box.min_[1];
+            auto out = result.mutable_unchecked<3>();
+            auto out_y = ty_begin - box.min_[0];
+            auto out_x = tx_begin - box.min_[1];
 
-            for (auto ty = tys; ty < tye; ++ty, ++ry)
+            for (auto ty = ty_begin; ty < ty_end; ++ty, ++out_y)
                 std::copy(
-                    &t(ty - iy, txs - ix, 0),
-                    &t(ty - iy, txe - ix, 0),
-                    &r(ry, rx, 0)
+                    &t(ty - iy, tx_begin - ix, 0),
+                    &t(ty - iy, tx_end - ix, 0),
+                    &out(out_y, out_x, 0)
                 );
         }
     }
     return result;
 }
 
-} // namespace ts
+} // namespace ts::tiff
