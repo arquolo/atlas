@@ -75,7 +75,7 @@ setuptools.setup(
     author='Paul Maevskikh',
     author_email='arquolo@gmail.com',
     url=f'https://github.com/arquolo/{PACKAGE}',
-    description=f'{PACKAGE}-any - source version or {PACKAGE} for Python 3.6+',
+    description=f'{PACKAGE}-any - source version of {PACKAGE} for Python 3.6+',
     long_description=Path('README.md').read_text(),
     long_description_content_type='text/markdown',
     packages=setuptools.find_packages(),
