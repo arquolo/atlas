@@ -31,6 +31,7 @@ struct Box {
     constexpr Size shape(size_t dim) const noexcept {
         return static_cast<Size>(max_[dim] - min_[dim]);
     }
+    constexpr Size area() const noexcept { return shape(0) * shape(1); }
 };
 
 template <typename T>

@@ -114,15 +114,28 @@ template <typename T>
 Array<T> TiffImage::read(const Box& box) const {
     Array<T> result{{box.shape(0), box.shape(1), this->samples}};
 
+    const auto& shape = this->levels.at(box.level).shape;
+    auto crop = Box{
+        {
+            std::clamp(box.min_[0], Size{0}, shape[0]),
+            std::clamp(box.min_[1], Size{0}, shape[1])
+        }, {
+            std::clamp(box.max_[0], Size{0}, shape[0]),
+            std::clamp(box.max_[1], Size{0}, shape[1])
+        },
+        box.level
+    };
+    if (!crop.area())
+        return result;
+
     const auto& tshape = this->levels.at(box.level).tile_shape;
     Size min_[] = {
-        floor(std::max(box.min_[0], Size{0}), tshape[0]),
-        floor(std::max(box.min_[1], Size{0}), tshape[1]),
+        floor(crop.min_[0], tshape[0]),
+        floor(crop.min_[1], tshape[1]),
     };
-    const auto& shape = this->levels.at(box.level).shape;
-    Size max_[] {
-        ceil(std::min(box.max_[0], shape[0]), tshape[0]),
-        ceil(std::min(box.max_[1], shape[1]), tshape[1]),
+    Size max_[] = {
+        ceil(crop.max_[0], tshape[0]),
+        ceil(crop.max_[1], tshape[1]),
     };
 
     for (auto iy = min_[0]; iy < max_[0]; iy += tshape[0]) {
