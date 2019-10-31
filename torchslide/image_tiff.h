@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <stdexcept>
 #include <vector>
@@ -43,6 +44,7 @@ class TiffImage final : public Image<TiffImage> {
 
     const File file_;
     const uint16_t codec_ = 0;
+    mutable std::mutex mutex_;
 
     template <typename T>
     Array<T> read_at(Level level, uint32_t iy, uint32_t ix) const;
@@ -81,23 +83,37 @@ std::optional<T> File::get_defaulted(uint32 tag) const noexcept {
 
 template <typename T>
 Array<T> TiffImage::read_at(Level level, uint32_t iy, uint32_t ix) const {
-    TIFFSetDirectory(this->file_, level);
     const auto& tshape = this->levels.at(level).tile_shape;
 
-    if (this->codec_ == 33005) { // Aperio SVS
-        std::vector<uint8_t> buffer(TIFFTileSize(this->file_));
-        buffer.resize(TIFFReadRawTile(
-            this->file_,
-            this->file_.position(iy, ix),
-            buffer.data(),
-            buffer.size()
-        ));
-        return io::jp2k::decode<T>(buffer, this->levels.at(level).tile_shape);
-    }
+    if (this->codec_ == 33005) // Aperio SVS
+        return ts::to_array(
+            [&, this]() {
+                py::gil_scoped_release no_gil;
+                std::unique_lock lk{this->mutex_};
+
+                TIFFSetDirectory(this->file_, level);
+                std::vector<uint8_t> buffer(TIFFTileSize(this->file_));
+                buffer.resize(TIFFReadRawTile(
+                    this->file_,
+                    this->file_.position(iy, ix),
+                    buffer.data(),
+                    buffer.size()
+                ));
+                return io::jp2k::decode(buffer);
+            }(),
+            this->levels.at(level).tile_shape
+        );
+
     if (this->samples != 4) {
         auto tile = Array<T>(tshape);
         auto info = tile.request();
-        TIFFReadTile(this->file_, info.ptr, ix, iy, 0, 0);
+        {
+            py::gil_scoped_release no_gil;
+            std::unique_lock lk{this->mutex_};
+
+            TIFFSetDirectory(this->file_, level);
+            TIFFReadTile(this->file_, info.ptr, ix, iy, 0, 0);
+        }
         return tile;
     }
 
@@ -106,7 +122,13 @@ Array<T> TiffImage::read_at(Level level, uint32_t iy, uint32_t ix) const {
     py::array_t<T> tile{shape, strides};
 
     auto info = tile.request();
-    TIFFReadRGBATile(this->file_, ix, iy, (uint32*)info.ptr);  // bgra
+    {
+        py::gil_scoped_release no_gil;
+        std::unique_lock lk{this->mutex_};
+
+        TIFFSetDirectory(this->file_, level);
+        TIFFReadRGBATile(this->file_, ix, iy, (uint32*)info.ptr);  // bgra
+    }
     return tile;
 }
 
