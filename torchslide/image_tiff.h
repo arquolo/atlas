@@ -115,16 +115,7 @@ Array<T> TiffImage::read(const Box& box) const {
     Array<T> result{{box.shape(0), box.shape(1), this->samples}};
 
     const auto& shape = this->levels.at(box.level).shape;
-    auto crop = Box{
-        {
-            std::clamp(box.min_[0], Size{0}, shape[0]),
-            std::clamp(box.min_[1], Size{0}, shape[1])
-        }, {
-            std::clamp(box.max_[0], Size{0}, shape[0]),
-            std::clamp(box.max_[1], Size{0}, shape[1])
-        },
-        box.level
-    };
+    auto crop = box.fit_to(shape);
     if (!crop.area())
         return result;
 

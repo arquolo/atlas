@@ -19,9 +19,9 @@ namespace ts {
 enum class Bitstream : int { RAW, LZW, JPEG, JPEG2000 };
 enum class Interpolation : int { Nearest, Linear };
 
-using Size = ssize_t;
 using Level = uint16_t;
-using Shape = std::array<ssize_t, 3>;
+using Size = ssize_t;
+using Shape = std::array<Size, 3>;
 
 struct Box {
     Size min_[2];
@@ -29,9 +29,22 @@ struct Box {
     Level level = 1;
 
     constexpr Size shape(size_t dim) const noexcept {
-        return static_cast<Size>(max_[dim] - min_[dim]);
+        return static_cast<Size>(std::max(max_[dim] - min_[dim], Size{}));
     }
     constexpr Size area() const noexcept { return shape(0) * shape(1); }
+
+    constexpr Box fit_to(const Shape& shape) const noexcept {
+        return {
+            {
+                std::clamp(min_[0], Size{}, shape[0]),
+                std::clamp(min_[1], Size{}, shape[1])
+            }, {
+                std::clamp(max_[0], Size{}, shape[0]),
+                std::clamp(max_[1], Size{}, shape[1])
+            },
+            level,
+        };
+    };
 };
 
 template <typename T>

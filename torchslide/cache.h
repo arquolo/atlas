@@ -49,13 +49,12 @@ class Cache {
     std::map<Key, Future> futures_;
 
     size_t size_hint(Value const& value) noexcept {
-        if constexpr (std::is_class_v<Ret>)
-            if constexpr(std::is_member_function_pointer_v<decltype(&Ret::size)>)
-                return value->size();
-            else
-                return sizeof(Value);
-        else
+        if constexpr (!std::is_class_v<Ret>)
             return sizeof(Value);
+        else if constexpr(!std::is_member_function_pointer_v<decltype(&Ret::size)>)
+            return sizeof(Value);
+        else
+            return value->size();
     }
 
     std::optional<Value> get(Key const& key) {

@@ -109,7 +109,7 @@ auto create_default_memory_stream(stream_t* stream, OPJ_BOOL readable) {
 
 namespace ts::io::jp2k {
 
-std::vector<uint8_t> _decode(const std::vector<uint8_t>& buf) {
+std::vector<uint8_t> decode(const std::vector<uint8_t>& buf) {
     // set up the input buffer as a stream
     stream_t stream{(OPJ_UINT8*)buf.data(), buf.size()};
 
