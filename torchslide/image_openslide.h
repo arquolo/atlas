@@ -19,9 +19,6 @@ public:
 };
 
 class OpenSlide final : public Image<OpenSlide> {
-    static inline constexpr const char* extensions[] = {
-        ".bif", ".ndpi", ".mrxs", ".scn", ".svs", ".svslide", ".tif", ".tiff", ".vms", ".vmu"};
-
     File file_;
 
     uint8_t bg_r_ = 255;
@@ -36,6 +33,9 @@ class OpenSlide final : public Image<OpenSlide> {
     void cache_capacity(size_t capacity);
 
 public:
+    static inline constexpr const char* extensions[] = {
+        ".bif", ".ndpi", ".mrxs", ".scn", ".svs", ".svslide", ".tif", ".tiff", ".vms", ".vmu"};
+
     OpenSlide(const Path& path);
 
     template <typename T>

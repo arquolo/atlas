@@ -40,7 +40,6 @@ public:
 };
 
 class TiffImage final : public Image<TiffImage> {
-    static inline constexpr const char* extensions[] = {".svs", ".tif", ".tiff"};
 
     const File file_;
     const uint16_t codec_ = 0;
@@ -50,6 +49,8 @@ class TiffImage final : public Image<TiffImage> {
     Array<T> read_at(Level level, uint32_t iy, uint32_t ix) const;
 
 public:
+    static inline constexpr const char* extensions[] = {".svs", ".tif", ".tiff"};
+
     TiffImage(const Path& path);
 
     template <typename T>
