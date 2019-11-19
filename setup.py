@@ -71,7 +71,7 @@ class BuildExt(build_ext):
 
 setuptools.setup(
     name=f'{PACKAGE}-any',
-    version='0.1.0',
+    version='0.2.0',
     author='Paul Maevskikh',
     author_email='arquolo@gmail.com',
     url=f'https://github.com/arquolo/{PACKAGE}',
@@ -85,6 +85,7 @@ setuptools.setup(
             PACKAGE,
             [
                 f'{PACKAGE}/io/jpeg2000.cpp',
+                f'{PACKAGE}/tensor.cpp',
                 f'{PACKAGE}/image.cpp',
                 f'{PACKAGE}/image_tiff.cpp',
                 f'{PACKAGE}/main.cpp',
