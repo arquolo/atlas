@@ -7,11 +7,11 @@ from matplotlib import pyplot as P
 from glow import mapped, timer
 
 
-def read(image, scale):
+def read(scale, image):
     return scale, image[::scale, ::scale]
 
 
-def read_open(filename, scale):
+def read_open(scale, filename):
     image = ts.Image(filename)
     return scale, image[::scale, ::scale]
 
@@ -24,6 +24,7 @@ def show(tile, scale):
     P.show()
 
 
+print(f'Version: {ts.torchslide.__version__}')
 for ext in ('tif', 'svs'):
     filename = f'../test.{ext}'
     print(filename)
@@ -36,13 +37,13 @@ for ext in ('tif', 'svs'):
         s for s in scales
         if np.prod(image.shape[:2]) / (s ** 2) < 2 ** 25
     ]
-    with timer('getitem'):
-        tiles = mapped(partial(read, image=image), scales)
+    with timer('[main:open -> worker:read]'):
+        tiles = mapped(partial(read, image=image), scales * 25)
         tiles = dict(tiles)
 
     del image
-    with timer('open+getitem'):
-        tiles = mapped(partial(read_open, filename=filename), scales)
+    with timer('[worker:(open, read)]'):
+        tiles = mapped(partial(read_open, filename=filename), scales * 25)
         tiles = dict(tiles)
 
     for scale, tile in tiles.items():
