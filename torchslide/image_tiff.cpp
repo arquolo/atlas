@@ -9,14 +9,14 @@ auto tiff_open(const Path& path, const std::string& flags) {
     auto open_fn = TIFFOpen;
 #endif
     TIFFSetErrorHandler(nullptr);
-    auto ptr_ = open_fn(path.c_str(), flags.c_str());
-    if (ptr_)
-        return std::unique_ptr<TIFF, void (*)(TIFF*)>{ptr_, TIFFClose};
+    auto ptr = open_fn(path.c_str(), flags.c_str());
+    if (ptr)
+        return std::unique_ptr<TIFF, void (*)(TIFF*)>{ptr, TIFFClose};
     throw std::runtime_error{"Failed to open: " + path.generic_string()};
 }
 
 File::File(const Path& path, const std::string& flags)
-  : ptr_{tiff_open(path, flags)} {}
+  : _ptr{tiff_open(path, flags)} {}
 
 uint32_t File::position(uint32_t iy, uint32_t ix) const noexcept {
     return TIFFComputeTile(*this, ix, iy, 0, 0);
@@ -90,10 +90,10 @@ auto _read_pyramid(const File& f, Size samples) {
 }
 
 TiffImage::TiffImage(const Path& path)
-  : file_{path, "rm"}
-  , codec_{file_.get<uint16_t>(TIFFTAG_COMPRESSION)}
+  : _file{path, "rm"}
+  , _codec{_file.get<uint16_t>(TIFFTAG_COMPRESSION)}
 {
-    auto c_descr = file_.get_defaulted<const char*>(TIFFTAG_IMAGEDESCRIPTION);
+    auto c_descr = _file.get_defaulted<const char*>(TIFFTAG_IMAGEDESCRIPTION);
     if (c_descr) {
         std::string descr{c_descr.value()};
         if (descr.find("DICOM") != std::string::npos
@@ -101,14 +101,14 @@ TiffImage::TiffImage(const Path& path)
                 || descr.find("XML") != std::string::npos)
             throw std::runtime_error{"Unsupported format: " + descr};
     }
-    if (!TIFFIsTiled(file_))
+    if (!TIFFIsTiled(_file))
         throw std::runtime_error{"Tiff is not tiled"};
-    if (file_.get<uint16_t>(TIFFTAG_PLANARCONFIG) != PLANARCONFIG_CONTIG)
+    if (_file.get<uint16_t>(TIFFTAG_PLANARCONFIG) != PLANARCONFIG_CONTIG)
         throw std::runtime_error{"Tiff is not contiguous"};
 
-    samples = _get_samples(file_);
-    levels = _read_pyramid(file_, samples);
-    dtype = _get_dtype(file_);
+    samples = _get_samples(_file);
+    levels = _read_pyramid(_file, samples);
+    dtype = _get_dtype(_file);
 }
 
 } // namespace ts::tiff

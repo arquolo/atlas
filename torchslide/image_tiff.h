@@ -17,14 +17,14 @@ namespace ts::tiff {
 // ------------------------------ declarations ------------------------------
 
 class File {
-    std::unique_ptr<TIFF, void (*)(TIFF*)> ptr_;
+    std::unique_ptr<TIFF, void (*)(TIFF*)> _ptr;
 
 public:
     File(const Path& path, const std::string& flags);
 
     /// for compatibility
-    inline operator TIFF*() noexcept { return ptr_.get(); }
-    inline operator TIFF*() const noexcept { return ptr_.get(); }
+    inline operator TIFF*() noexcept { return _ptr.get(); }
+    inline operator TIFF*() const noexcept { return _ptr.get(); }
 
     uint32_t position(uint32_t iy, uint32_t ix) const noexcept;
     uint32_t tiles() const noexcept;
@@ -40,10 +40,10 @@ public:
 };
 
 class TiffImage final : public Image<TiffImage> {
+    const File _file;
+    const uint16_t _codec = 0;
+    mutable std::mutex _mutex;
 
-    const File file_;
-    const uint16_t codec_ = 0;
-    mutable std::mutex mutex_;
 
     template <typename T>
     Array<T> read_at(Level level, uint32_t iy, uint32_t ix) const;
