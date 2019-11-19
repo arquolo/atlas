@@ -11,6 +11,7 @@
 #include "core/path.h"
 #include "image.h"
 #include "io/jpeg2000.h"
+#include "tensor.h"
 
 namespace ts::tiff {
 
@@ -44,9 +45,8 @@ class TiffImage final : public Image<TiffImage> {
     const uint16_t _codec = 0;
     mutable std::mutex _mutex;
 
-
     template <typename T>
-    Array<T> read_at(Level level, uint32_t iy, uint32_t ix) const;
+    Tensor<T> _read_at(Level level, uint32_t iy, uint32_t ix) const;
 
 public:
     static inline constexpr const char* extensions[] = {".svs", ".tif", ".tiff"};
@@ -83,64 +83,56 @@ std::optional<T> File::get_defaulted(uint32 tag) const noexcept {
 }
 
 template <typename T>
-Array<T> TiffImage::read_at(Level level, uint32_t iy, uint32_t ix) const {
-    const auto& tshape = this->levels.at(level).tile_shape;
+Tensor<T> TiffImage::_read_at(Level level, uint32_t iy, uint32_t ix) const {
+    const auto& shape = this->levels.at(level).tile_shape;
 
-    if (this->codec_ == 33005) // Aperio SVS
-        return ts::to_array(
-            [&, this]() {
-                py::gil_scoped_release no_gil;
-                std::unique_lock lk{this->mutex_};
+    if (this->_codec == 33005) {  // Aperio SVS
+        auto buffer = [&, this]() {
+            std::unique_lock lk{this->_mutex};
+            TIFFSetDirectory(this->_file, level);
+            std::vector<uint8_t> buf(TIFFTileSize(this->_file));
+            buf.resize(TIFFReadRawTile(
+                this->_file,
+                this->_file.position(iy, ix),
+                buf.data(),
+                buf.size()
+            ));
+            return buf;
+        }();
 
-                TIFFSetDirectory(this->file_, level);
-                std::vector<uint8_t> buffer(TIFFTileSize(this->file_));
-                buffer.resize(TIFFReadRawTile(
-                    this->file_,
-                    this->file_.position(iy, ix),
-                    buffer.data(),
-                    buffer.size()
-                ));
-                return io::jp2k::decode(buffer);
-            }(),
-            this->levels.at(level).tile_shape
-        );
-
-    if (this->samples != 4) {
-        auto tile = Array<T>(tshape);
-        auto info = tile.request();
-        {
-            py::gil_scoped_release no_gil;
-            std::unique_lock lk{this->mutex_};
-
-            TIFFSetDirectory(this->file_, level);
-            TIFFReadTile(this->file_, info.ptr, ix, iy, 0, 0);
+        if constexpr(std::is_same_v<std::decay_t<T>, uint8_t>)
+            return Tensor<T>{shape, io::jp2k::decode(buffer)};
+        else {
+            auto tile = Tensor<T>{shape};
+            auto data = io::jp2k::decode(buffer);
+            std::copy(data.begin(), data.end(), tile.data());
+            return tile;
         }
-        return tile;
     }
 
-    Size shape[] = {tshape[0], tshape[1], tshape[2]};
-    Size strides[] = {-tshape[2] * tshape[1], tshape[2], 1};
-    py::array_t<T> tile{shape, strides};
-
-    auto info = tile.request();
+    auto tile = Tensor<T>{shape};
     {
-        py::gil_scoped_release no_gil;
-        std::unique_lock lk{this->mutex_};
-
-        TIFFSetDirectory(this->file_, level);
-        TIFFReadRGBATile(this->file_, ix, iy, (uint32*)info.ptr);  // bgra
+        std::unique_lock lk{this->_mutex};
+        TIFFSetDirectory(this->_file, level);
+        if (this->samples != 4)
+            TIFFReadTile(this->_file, tile.data(), ix, iy, 0, 0);
+        else
+            // tile._strides = {-tshape[2] * tshape[1], tshape[2], 1};
+            // bgra
+            TIFFReadRGBATile(this->_file, ix, iy, (uint32*)tile.data());
     }
     return tile;
 }
 
 template <typename T>
 Array<T> TiffImage::read(const Box& box) const {
-    Array<T> result{{box.shape(0), box.shape(1), this->samples}};
+    py::gil_scoped_release no_gil;
+    Tensor<T> result{{box.shape(0), box.shape(1), this->samples}};
 
     const auto& shape = this->levels.at(box.level).shape;
     auto crop = box.fit_to(shape);
     if (!crop.area())
-        return result;
+        return std::move(result);
 
     const auto& tshape = this->levels.at(box.level).tile_shape;
     Size min_[] = {
@@ -152,33 +144,32 @@ Array<T> TiffImage::read(const Box& box) const {
         ceil(crop.max_[1], tshape[1]),
     };
 
-    for (auto iy = min_[0]; iy < max_[0]; iy += tshape[0]) {
+    for (auto iy = min_[0]; iy < max_[0]; iy += tshape[0])
         for (auto ix = min_[1]; ix < max_[1]; ix += tshape[1]) {
-            Array<T> tile = this->read_at<T>(
+            auto const tile = this->_read_at<T>(
                 box.level,
                 static_cast<uint32_t>(iy),
                 static_cast<uint32_t>(ix)
             );
 
-            auto t = tile.unchecked<3>();
+            auto t = tile.view<3>();
             auto ty_begin = std::max(box.min_[0], iy);
             auto tx_begin = std::max(box.min_[1], ix);
             auto ty_end = std::min({box.max_[0], iy + tshape[0], shape[0]});
             auto tx_end = std::min({box.max_[1], ix + tshape[1], shape[1]});
 
-            auto out = result.mutable_unchecked<3>();
+            auto out = result.view<3>();
             auto out_y = ty_begin - box.min_[0];
             auto out_x = tx_begin - box.min_[1];
 
             for (auto ty = ty_begin; ty < ty_end; ++ty, ++out_y)
                 std::copy(
-                    &t(ty - iy, tx_begin - ix, 0),
-                    &t(ty - iy, tx_end - ix, 0),
-                    &out(out_y, out_x, 0)
+                    &t({ty - iy, tx_begin - ix}),
+                    &t({ty - iy, tx_end - ix}),
+                    &out({out_y, out_x})
                 );
         }
-    }
-    return result;
+    return std::move(result);
 }
 
 } // namespace ts::tiff
