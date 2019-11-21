@@ -1,6 +1,7 @@
 import os
-import sys
-from functools import wraps
+from io import StringIO
+from concurrent.futures import ThreadPoolExecutor
+from contextlib import redirect_stdout
 from pathlib import Path
 
 import setuptools
@@ -14,23 +15,34 @@ class BinaryDistribution(setuptools.Distribution):
         return True
 
 
-def patch_init(cls):
-    def wrapper(self):
-        initialize(self)
-        self.compile_options = [
-            '-nologo', '-DNDEBUG', '-W4',
-            # '-O1',  # minimize size
-            '-O2',  # maximize speed
-            # '-MT',  # static linkage
-            '-MD',  # dynamic linkage
-            '-std:c++latest',
-        ]
-        self.ldflags_shared.clear()
-        self.ldflags_shared.extend([
-            '-nologo', '-INCREMENTAL:NO', '-DLL', '-MANIFEST:NO'])
+def patch(cls, target, wrapper):
+    wrapped = getattr(cls, target)
 
-    initialize = cls.initialize
-    cls.initialize = wraps(initialize)(wrapper)
+    def wrapper_(*args, **kwargs):
+        return wrapper(*args, wrapped=wrapped, **kwargs)
+
+    setattr(cls, target, wrapper_)
+
+
+def initialize(self, *, wrapped=None):
+    wrapped(self)
+    self.compile_options = [
+        '-nologo', '-DNDEBUG', '-W4', '-MD', '-std:c++latest',
+        # '-O1',  # minimize size
+        '-O2',  # maximize speed
+    ]
+    self.ldflags_shared.clear()
+    self.ldflags_shared.extend([
+        '-nologo', '-INCREMENTAL:NO', '-DLL', '-MANIFEST:NO'])
+
+
+def compile_(self, sources, wrapped=None, **kwargs):
+    def worker(src):
+        return wrapped(self, [src], **kwargs)
+
+    with ThreadPoolExecutor(os.cpu_count()) as pool:
+        with redirect_stdout(StringIO()):
+            return [obj for obj, in pool.map(worker, sources)]
 
 
 class PyBindInclude:
@@ -52,20 +64,21 @@ class BuildExt(build_ext):
                  '-std=c++17',
                  '-fvisibility=hidden',
                  '-O3'],
-                (lambda cls: None)),
+                {'compile': compile_}),
             'msvc': (
                 [f'-DVERSION_INFO=\\"{self.distribution.get_version()}\\"'],
-                patch_init
+                {'compile': compile_, 'initialize': initialize}
             )
         }
         option = options.get(self.compiler.compiler_type)
         if option is None:
             raise RuntimeError(f'only {set(options)} compilers supported')
 
-        args, patch = option
+        args, patches = option
         for ext in self.extensions:
             ext.extra_compile_args = args
-        patch(self.compiler.__class__)
+        for target, wrapper in patches.items():
+            patch(self.compiler.__class__, target, wrapper)
         super().build_extensions()
 
 
