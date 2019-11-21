@@ -1,7 +1,7 @@
 #include <openjpeg.h>
 #include <opj_config.h>
 
-#include "io/jpeg2000.h"
+#include "tiff_j2k.h"
 
 namespace std {
 template <typename T, typename Deleter>
@@ -107,7 +107,7 @@ auto create_default_memory_stream(stream_t* stream, OPJ_BOOL readable) {
 
 } // namespace
 
-namespace ts::io::jp2k {
+namespace ts::jp2k {
 
 std::vector<uint8_t> decode(const std::vector<uint8_t>& buf) {
     // set up the input buffer as a stream
@@ -163,94 +163,94 @@ std::vector<uint8_t> decode(const std::vector<uint8_t>& buf) {
     return result;
 }
 
-std::vector<uint8_t> encode(py::buffer data, size_t rate) {
-    auto info = data.request();
+// std::vector<uint8_t> encode(py::buffer data, size_t rate) {
+//     auto info = data.request();
 
-    auto samples = info.shape[2];
-    if (info.format == py::format_descriptor<float>::format())
-        throw py::type_error{"Float is not supported"};
+//     auto samples = info.shape[2];
+//     if (info.format == py::format_descriptor<float>::format())
+//         throw py::type_error{"Float is not supported"};
 
-    opj_cparameters_t parameters; // compression parameters
-    parameters.tcp_mct = samples > 1 ? 1 : 0;  // decide if MCT should be used
-    opj_set_default_encoder_parameters(&parameters);
-    if (rate < 100) {
-        parameters.tcp_rates[0] = 100.0f / rate;
-        parameters.irreversible = 1; //ICT
-    } else
-        parameters.tcp_rates[0] = 0;
+//     opj_cparameters_t parameters; // compression parameters
+//     parameters.tcp_mct = samples > 1 ? 1 : 0;  // decide if MCT should be used
+//     opj_set_default_encoder_parameters(&parameters);
+//     if (rate < 100) {
+//         parameters.tcp_rates[0] = 100.0f / rate;
+//         parameters.irreversible = 1; //ICT
+//     } else
+//         parameters.tcp_rates[0] = 0;
 
-    parameters.tcp_numlayers = 1;
-    parameters.cp_disto_alloc = 1;
+//     parameters.tcp_numlayers = 1;
+//     parameters.cp_disto_alloc = 1;
 
-    // set the image components parameters
-    std::vector<opj_image_cmptparm_t> components(samples);
-    for (auto& component : components) {
-        component.dx = parameters.subsampling_dx;
-        component.dy = parameters.subsampling_dy;
-        component.h = static_cast<OPJ_UINT32>(info.shape[0]);
-        component.w = static_cast<OPJ_UINT32>(info.shape[1]);
-        component.prec = static_cast<OPJ_UINT32>(info.itemsize * 8);
-        component.bpp = static_cast<OPJ_UINT32>(info.itemsize * 8);
-        component.sgnd = 0;
-        component.x0 = 0;
-        component.y0 = 0;
-    }
-    OPJ_COLOR_SPACE color_space = (samples == 3 || samples == 4)
-        ? COLOR_SPACE::OPJ_CLRSPC_SRGB
-        : COLOR_SPACE::OPJ_CLRSPC_GRAY;
+//     // set the image components parameters
+//     std::vector<opj_image_cmptparm_t> components(samples);
+//     for (auto& component : components) {
+//         component.dx = parameters.subsampling_dx;
+//         component.dy = parameters.subsampling_dy;
+//         component.h = static_cast<OPJ_UINT32>(info.shape[0]);
+//         component.w = static_cast<OPJ_UINT32>(info.shape[1]);
+//         component.prec = static_cast<OPJ_UINT32>(info.itemsize * 8);
+//         component.bpp = static_cast<OPJ_UINT32>(info.itemsize * 8);
+//         component.sgnd = 0;
+//         component.x0 = 0;
+//         component.y0 = 0;
+//     }
+//     OPJ_COLOR_SPACE color_space = (samples == 3 || samples == 4)
+//         ? COLOR_SPACE::OPJ_CLRSPC_SRGB
+//         : COLOR_SPACE::OPJ_CLRSPC_GRAY;
 
-    // get a J2K compressor handle
-    opj_codec_t* encoder = opj_create_compress(CODEC_FORMAT::OPJ_CODEC_J2K);
-    std::unique_ptr delete_encoder(encoder, opj_destroy_codec);
+//     // get a J2K compressor handle
+//     opj_codec_t* encoder = opj_create_compress(CODEC_FORMAT::OPJ_CODEC_J2K);
+//     std::unique_ptr delete_encoder(encoder, opj_destroy_codec);
 
-    // catch events using our callbacks and give a local context
-    opj_set_info_handler(encoder, null_callback, nullptr);
-    opj_set_warning_handler(encoder, null_callback, nullptr);
-    opj_set_error_handler(encoder, null_callback, nullptr);
+//     // catch events using our callbacks and give a local context
+//     opj_set_info_handler(encoder, null_callback, nullptr);
+//     opj_set_warning_handler(encoder, null_callback, nullptr);
+//     opj_set_error_handler(encoder, null_callback, nullptr);
 
-    // set the "OpenJpeg like" stream data
-    std::vector<uint8_t> buf(info.size * info.itemsize);
-    stream_t buffer{buf.data(), buf.size()};
+//     // set the "OpenJpeg like" stream data
+//     std::vector<uint8_t> buf(info.size * info.itemsize);
+//     stream_t buffer{buf.data(), buf.size()};
 
-    // create an image struct
-    opj_image* image = opj_image_create(
-        static_cast<OPJ_UINT32>(samples), components.data(), color_space);
-    std::unique_ptr delete_image(image, opj_image_destroy);
+//     // create an image struct
+//     opj_image* image = opj_image_create(
+//         static_cast<OPJ_UINT32>(samples), components.data(), color_space);
+//     std::unique_ptr delete_image(image, opj_image_destroy);
 
-    // set image offset and reference grid
-    image->x0 = 0;
-    image->y0 = 0;
-    image->x1 = (OPJ_UINT32)(components[0].w - 1) * (OPJ_UINT32)parameters.subsampling_dx + 1;
-    image->y1 = (OPJ_UINT32)(components[0].h - 1) * (OPJ_UINT32)parameters.subsampling_dy + 1;
+//     // set image offset and reference grid
+//     image->x0 = 0;
+//     image->y0 = 0;
+//     image->x1 = (OPJ_UINT32)(components[0].w - 1) * (OPJ_UINT32)parameters.subsampling_dx + 1;
+//     image->y1 = (OPJ_UINT32)(components[0].h - 1) * (OPJ_UINT32)parameters.subsampling_dy + 1;
 
-    // setup the encoder parameters using the current image and user parameters
-    opj_setup_encoder(encoder, &parameters, image);
+//     // setup the encoder parameters using the current image and user parameters
+//     opj_setup_encoder(encoder, &parameters, image);
 
-    // (re)set the buffer pointers
-    std::vector<OPJ_INT32*> cmp_iters(image->numcomps);
-    for (size_t cmp = 0; cmp < image->numcomps; ++cmp)
-        cmp_iters[cmp] = (OPJ_INT32*)(image->comps[cmp].data);
+//     // (re)set the buffer pointers
+//     std::vector<OPJ_INT32*> cmp_iters(image->numcomps);
+//     for (size_t cmp = 0; cmp < image->numcomps; ++cmp)
+//         cmp_iters[cmp] = (OPJ_INT32*)(image->comps[cmp].data);
 
-    // set the color stuff.
-    auto bitdepth = ts::ceil(components[0].bpp, 8u);
-    auto* it = (uint8_t*)info.ptr;
-    for (ssize_t pixel = 0; pixel < info.size / info.shape[2]; ++pixel)
-        for (OPJ_INT32*& cmp_iter : cmp_iters) {
-            for (size_t bits = 0; bits < bitdepth; bits += 8) {
-                *cmp_iter |= ((OPJ_INT32)(*it) & 0xFF) << bits;
-                ++it;
-            }
-            ++cmp_iter;
-        }
+//     // set the color stuff.
+//     auto bitdepth = ts::ceil(components[0].bpp, 8u);
+//     auto* it = (uint8_t*)info.ptr;
+//     for (ssize_t pixel = 0; pixel < info.size / info.shape[2]; ++pixel)
+//         for (OPJ_INT32*& cmp_iter : cmp_iters) {
+//             for (size_t bits = 0; bits < bitdepth; bits += 8) {
+//                 *cmp_iter |= ((OPJ_INT32)(*it) & 0xFF) << bits;
+//                 ++it;
+//             }
+//             ++cmp_iter;
+//         }
 
-    // open a byte stream for writing and encode image
-    auto l_stream = create_default_memory_stream(&buffer, OPJ_FALSE);
-    opj_start_compress(encoder, image, l_stream.get());
-    opj_encode(encoder, l_stream.get());
-    opj_end_compress(encoder, l_stream.get());
+//     // open a byte stream for writing and encode image
+//     auto l_stream = create_default_memory_stream(&buffer, OPJ_FALSE);
+//     opj_start_compress(encoder, image, l_stream.get());
+//     opj_encode(encoder, l_stream.get());
+//     opj_end_compress(encoder, l_stream.get());
 
-    // change to encoded size
-    return std::vector<uint8_t>(buffer.data, buffer.data + buffer.offset + 1);
-}
+//     // change to encoded size
+//     return std::vector<uint8_t>(buffer.data, buffer.data + buffer.offset + 1);
+// }
 
-} // namespace ts::io::jp2k
+} // namespace ts::jp2k

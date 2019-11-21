@@ -5,6 +5,7 @@ dist
 *.egg-info
 
 .pytest_cache
+.mypy_cache
 .vscode
 .ipynb_checkpoints
 

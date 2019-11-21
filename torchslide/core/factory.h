@@ -1,12 +1,13 @@
 #pragma once
 
+#include <filesystem>
 #include <memory>
 #include <string>
 #include <unordered_map>
 
-#include "core/path.h"
-
 namespace ts {
+
+using Path = std::filesystem::path;
 
 template <class Base>
 class Factory {
@@ -21,7 +22,7 @@ class Factory {
     }
 
 public:
-    static std::unique_ptr<Base> make(const std::string& filename) {
+    static std::unique_ptr<Base> make(std::string const& filename) {
         Path path{filename};
         if (auto it = data().find(path.extension().string());
                 it != data().end())
@@ -34,7 +35,7 @@ public:
         static bool register_this() {
             static_assert(std::is_base_of_v<Register<Derived>, Derived>,
                           "Unregistered!!");
-            constexpr auto func = [](const Path& path) -> std::unique_ptr<Base> {
+            constexpr auto func = [](Path const& path) -> std::unique_ptr<Base> {
                 return std::make_unique<Derived>(path);
             };
             for (const auto& ext : Derived::extensions)

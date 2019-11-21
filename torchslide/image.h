@@ -2,19 +2,17 @@
 
 #include <map>
 
-#include "core/factory.h"
-#include "core/types.h"
+#include <pybind11/pytypes.h>
 
+#include "core/box.h"
+#include "core/factory.h"
+#include "core/std.h"
+
+namespace py = pybind11;
 namespace ts {
 
-using DType = std::variant<uint8_t, uint16_t, uint32_t, float>;
-
-struct LevelInfo {
-    Shape shape;
-    Shape tile_shape;
-};
-
-namespace abc {
+// enum class Bitstream : int { RAW, LZW, JPEG, JPEG2000 };
+// enum class Interpolation : int { Nearest, Linear };
 
 class Image : public Factory<Image> {
 public:
@@ -22,32 +20,13 @@ public:
     Size samples = 0;
     std::map<Level, LevelInfo> levels = {};
 
-    Size get_scale(const LevelInfo& info) const noexcept;
+    Size get_scale(LevelInfo const& info) const noexcept;
     std::vector<Size> scales() const noexcept;
 
     std::pair<Level, LevelInfo> get_level(Size scale) const noexcept;
 
-    virtual py::buffer read_any(const Box& box) const = 0;
+    virtual py::buffer read_any(Box const& box) const = 0;
     virtual ~Image() noexcept;
-};
-
-} // namespace abc
-
-template <class Impl>
-class Image : public abc::Image::Register<Impl> {
-    auto* derived() const noexcept { return static_cast<const Impl*>(this); }
-
-public:
-    py::buffer read_any(const Box& box) const final {
-        return std::visit(
-            [this, &box](auto v) -> py::buffer {
-                return this->derived()->template read<decltype(v)>(box);
-            },
-            this->dtype);
-    }
-
-    template <typename T>
-    Array<T> read(const Box& box) const;
 };
 
 } // namespace ts

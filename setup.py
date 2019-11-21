@@ -83,16 +83,8 @@ setuptools.setup(
     ext_modules=[
         setuptools.Extension(
             PACKAGE,
-            [
-                f'{PACKAGE}/io/jpeg2000.cpp',
-                f'{PACKAGE}/tensor.cpp',
-                f'{PACKAGE}/image.cpp',
-                f'{PACKAGE}/image_tiff.cpp',
-                f'{PACKAGE}/main.cpp',
-            ],
-            # list(map(str, Path(__file__).parent.glob(f'{PACKAGE}/*.cpp'))),
+            list(map(str, Path(__file__).parent.glob(f'{PACKAGE}/*.cpp'))),
             include_dirs=[
-                # PyBindInclude(),
                 PyBindInclude(user=True),
                 f'./{PACKAGE}',
                 './__dependencies__/include',
