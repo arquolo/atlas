@@ -1,4 +1,5 @@
 from functools import partial
+from pathlib import Path
 
 import numpy as np
 import torchslide as ts
@@ -25,8 +26,10 @@ def show(tile, scale):
 
 
 print(f'Version: {ts.torchslide.__version__}')
-for ext in ('tif', 'svs'):
-    filename = f'../test.{ext}'
+
+n = 1  # 25
+for filename in sorted(Path('..').glob('*.svs')):
+    filename = str(filename)
     print(filename)
 
     image = ts.Image(filename)
@@ -35,15 +38,15 @@ for ext in ('tif', 'svs'):
     scales = image.scales
     scales = [
         s for s in scales
-        if np.prod(image.shape[:2]) / (s ** 2) < 2 ** 25
+        if np.prod(image.shape[:2], dtype='int64') / (s ** 2) < 2 ** 25
     ]
     with timer('[main:open -> worker:read]'):
-        tiles = mapped(partial(read, image=image), scales * 25)
+        tiles = mapped(partial(read, image=image), scales * n)
         tiles = dict(tiles)
 
     del image
     with timer('[worker:(open, read)]'):
-        tiles = mapped(partial(read_open, filename=filename), scales * 25)
+        tiles = mapped(partial(read_open, filename=filename), scales * n)
         tiles = dict(tiles)
 
     for scale, tile in tiles.items():

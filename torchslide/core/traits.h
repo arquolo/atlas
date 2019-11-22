@@ -4,22 +4,16 @@
 
 namespace ts {
 
-// ---------------------------------- types ----------------------------------
-
-// -------------------------------- functions --------------------------------
-
 template <typename T>
 constexpr std::string_view type_name() {
-    #ifdef __clang__
-        std::string_view p = __PRETTY_FUNCTION__;
-        return std::string_view(p.data() + 34, p.size() - 34 - 1);
-    #elif defined(__GNUC__)
-        std::string_view p = __PRETTY_FUNCTION__;
-        return std::string_view(p.data() + 49, p.find(';', 49) - 49);
+    #if defined(__clang__) || defined(__GNUC__)
+        constexpr std::string_view fn = __PRETTY_FUNCTION__;
     #elif defined(_MSC_VER)
-        std::string_view p = __FUNCSIG__;
-        return std::string_view(p.data() + 84, p.size() - 84 - 7);
+        constexpr std::string_view fn = __FUNCSIG__;
     #endif
+    constexpr auto _begin = fn.find("type_name<") + 10;
+    constexpr auto _end = fn.find(">(", _begin);
+    return fn.substr(_begin, _end - _begin);
 }
 
 } // namespace ts

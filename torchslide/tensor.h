@@ -39,7 +39,9 @@ public:
     Tensor(ShapeAny shape) : _shape{std::move(shape)} {
         _data.resize(_detail::_to_size(_shape));
     }
-    Tensor(ShapeAny shape, _Storage data) : _shape{std::move(shape)}, _data{std::move(data)} {}
+    Tensor(ShapeAny shape, _Storage data)
+        : _shape{std::move(shape)}, _data{std::move(data)}
+    {}
 
     auto const& shape() const& noexcept { return this->_shape; }
     auto&& shape() && noexcept { return this->_shape; }

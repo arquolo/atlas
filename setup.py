@@ -84,7 +84,7 @@ class BuildExt(build_ext):
 
 setuptools.setup(
     name=f'{PACKAGE}-any',
-    version='0.2.0',
+    version='0.2.1',
     author='Paul Maevskikh',
     author_email='arquolo@gmail.com',
     url=f'https://github.com/arquolo/{PACKAGE}',

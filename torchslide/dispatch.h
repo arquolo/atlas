@@ -15,8 +15,11 @@ class Dispatch : public Image::Register<Impl> {
 
 public:
     /// Virtual method to read tile of erased type.
-    /// Gets access to implementation via `derived()`, then calls `read<T>` using T from `dtype`
-    py::buffer read_any(Box const& box) const final {
+    /// Gets access to implementation via `derived()`, then calls `read<T>` using T from `dtype`.
+    /// So full stack is:
+    ///   `Image::read_any` -[vtable]-> `Dispatch::read_any -> derived()::read<[dtype::visit]>`
+    virtual py::buffer read_any(Box const& box) const final {
+        py::gil_scoped_release no_gil;
         return std::visit(
             [this, &box](auto v) {
                 return as_buffer(
@@ -27,7 +30,7 @@ public:
     }
 
     template <typename T>
-    Tensor<T> read(const Box& box) const;
+    Tensor<T> read(Box const& box) const;
 };
 
 template <typename T>

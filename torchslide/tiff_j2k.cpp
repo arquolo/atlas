@@ -10,6 +10,15 @@ unique_ptr(T* ptr, Deleter deleter) -> unique_ptr<T, Deleter>;
 
 namespace {
 
+struct Guard {
+    std::string name;
+
+    Guard(std::string name) : name{std::move(name)} {
+        printf("%s -> in\n", this->name.data());
+    }
+    ~Guard() { printf("%s -> out\n", name.data()); }
+};
+
 struct stream_t {
     OPJ_UINT8* data;
     OPJ_SIZE_T size;
@@ -22,6 +31,7 @@ static void stream_no_op(void*) {}
 
 // this will read from p_buffer to the stream
 static OPJ_SIZE_T stream_read(void* buffer, OPJ_SIZE_T bytes, void* data) {
+    Guard g{__FUNCSIG__};
     auto* stream = static_cast<stream_t*>(data);
     OPJ_SIZE_T data_end_offset = stream->size - 1;
 
@@ -34,12 +44,15 @@ static OPJ_SIZE_T stream_read(void* buffer, OPJ_SIZE_T bytes, void* data) {
 
     // copy the data to the internal buffer
     memcpy(buffer, stream->data + stream->offset, bytes_read);
-    stream->offset += bytes_read; // update the pointer to the new location
+
+    // update the pointer to the new location
+    stream->offset += bytes_read;
     return bytes_read;
 }
 
 // this will write from the stream to p_buffer
 static OPJ_SIZE_T stream_write(void* buffer, OPJ_SIZE_T bytes, void* data) {
+    Guard g{__FUNCSIG__};
     auto* stream = static_cast<stream_t*>(data);
     OPJ_SIZE_T data_end_offset = stream->size - 1;
 
@@ -52,12 +65,15 @@ static OPJ_SIZE_T stream_write(void* buffer, OPJ_SIZE_T bytes, void* data) {
 
     // copy the data from the internal buffer
     memcpy(stream->data + stream->offset, buffer, bytes_write);
-    stream->offset += bytes_write; // update the pointer to the new location.
+
+    // update the pointer to the new location
+    stream->offset += bytes_write;
     return bytes_write;
 }
 
 // moves the current offset forward, but never more than size
 static OPJ_OFF_T stream_skip(OPJ_OFF_T bytes, void* data) {
+    Guard g{__FUNCSIG__};
     if (bytes < 0)
         return -1;
 
@@ -65,7 +81,8 @@ static OPJ_OFF_T stream_skip(OPJ_OFF_T bytes, void* data) {
     auto data_end_offset = stream->size - 1;
 
     // do not allow moving past the end
-    OPJ_SIZE_T bytes_skip = std::min((OPJ_SIZE_T)bytes, data_end_offset - stream->offset);
+    OPJ_SIZE_T bytes_skip = std::min(
+        static_cast<OPJ_SIZE_T>(bytes), data_end_offset - stream->offset);
 
     stream->offset += bytes_skip;  // make the jump
     return bytes_skip;
@@ -73,20 +90,22 @@ static OPJ_OFF_T stream_skip(OPJ_OFF_T bytes, void* data) {
 
 // sets the offset to anywhere in the stream.
 static OPJ_BOOL stream_seek(OPJ_OFF_T bytes, void* data) {
+    Guard g{__FUNCSIG__};
     if (bytes < 0)
         return OPJ_FALSE; // not before the buffer
 
     auto* stream = static_cast<stream_t*>(data);
 
-    if (bytes > (OPJ_OFF_T)(stream->size - 1))
+    if (bytes > static_cast<OPJ_OFF_T>(stream->size - 1))
         return OPJ_FALSE; // not after the buffer
 
-    stream->offset = (OPJ_SIZE_T)bytes; // move to new position
+    stream->offset = static_cast<OPJ_SIZE_T>(bytes); // move to new position
     return OPJ_TRUE;
 }
 
 // create a stream to use memory as the input or output
-auto create_default_memory_stream(stream_t& stream, OPJ_BOOL readable) {
+auto make_memory_stream(stream_t& stream, OPJ_BOOL readable) {
+    Guard g{__FUNCSIG__};
     opj_stream_t* l_stream = opj_stream_default_create(readable);
     if (!l_stream)
         throw std::runtime_error{"stream is not created"};
@@ -110,11 +129,12 @@ auto create_default_memory_stream(stream_t& stream, OPJ_BOOL readable) {
 namespace ts::jp2k {
 
 std::vector<uint8_t> decode(const std::vector<uint8_t>& buf) {
+    Guard g{__FUNCSIG__};
     // set up the input buffer as a stream
-    stream_t stream{(OPJ_UINT8*)buf.data(), buf.size()};
+    stream_t stream{const_cast<OPJ_UINT8*>(buf.data()), buf.size()};
 
     // open the memory as a stream
-    auto l_stream = create_default_memory_stream(stream, OPJ_TRUE);
+    auto l_stream = make_memory_stream(stream, OPJ_TRUE);
 
     opj_dparameters_t parameters;
     opj_set_default_decoder_parameters(&parameters);
@@ -145,21 +165,33 @@ std::vector<uint8_t> decode(const std::vector<uint8_t>& buf) {
     uint32_t bitdepth = ts::ceil(image->comps[0].prec, 8u);
     uint32_t pixels = (image->comps[0].w * image->comps[0].h);
 
-    std::vector<const OPJ_INT32*> cmp_iters(image->numcomps, nullptr);
+    std::vector<OPJ_INT32 const*> cmp_iters(image->numcomps, nullptr);
     for (size_t cmp = 0; cmp < image->numcomps; ++cmp)
         cmp_iters[cmp] = image->comps[cmp].data;
+
+    printf("7\n");
 
     std::vector<uint8_t> result(pixels * image->numcomps * bitdepth / 8, 0);
 
     auto it = result.begin();
-    for (size_t index = 0; index < pixels; ++index)
-        for (const OPJ_INT32*& cmp_iter : cmp_iters) {
+    for (size_t index = 0; index < pixels; ++index) {
+        for (OPJ_INT32 const*& cmp_iter : cmp_iters) {
             for (uint32_t bits = 0; bits < bitdepth; bits += 8) {
-                *it |= (uint8_t)(((*cmp_iter) >> bits) & 0xFF);
+                printf("1\n");
+                auto x = (*cmp_iter);
+                printf("2 - %d\n", x);
+                auto y = static_cast<uint8_t>((x >> bits) & 0xFF);
+                printf("3 - %d\n", y);
+                *it |= y;
+                printf("4\n");
+
+                // *it |= (uint8_t)(((*cmp_iter) >> bits) & 0xFF);
                 ++it;
             }
             ++cmp_iter;
         }
+    }
+    printf("8\n");
     return result;
 }
 
@@ -244,7 +276,7 @@ std::vector<uint8_t> decode(const std::vector<uint8_t>& buf) {
 //         }
 
 //     // open a byte stream for writing and encode image
-//     auto l_stream = create_default_memory_stream(&buffer, OPJ_FALSE);
+//     auto l_stream = make_memory_stream(&buffer, OPJ_FALSE);
 //     opj_start_compress(encoder, image, l_stream.get());
 //     opj_encode(encoder, l_stream.get());
 //     opj_end_compress(encoder, l_stream.get());

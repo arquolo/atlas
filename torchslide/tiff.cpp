@@ -85,47 +85,45 @@ template <typename T>
 Tensor<T> TiffImage::_read_at(Level level, uint32_t iy, uint32_t ix) const {
     auto const& shape = this->levels.at(level).tile_shape;
 
-    if (this->_codec == 33005) {  // Aperio SVS
-        auto buffer = [&, this]() {
-            std::unique_lock lk{this->_mutex};
-            TIFFSetDirectory(this->_file, level);
-            std::vector<uint8_t> buf(TIFFTileSize(this->_file));
-            buf.resize(TIFFReadRawTile(
-                this->_file,
-                this->_file.position(iy, ix),
-                buf.data(),
-                buf.size()
-            ));
-            return buf;
-        }();
+    std::unique_lock lk{this->_mutex};
+    TIFFSetDirectory(this->_file, level);
 
-        if constexpr(std::is_same_v<std::decay_t<T>, uint8_t>)
-            return Tensor<T>{shape, jp2k::decode(buffer)};
-        else {
-            auto tile = Tensor<T>{shape};
-            auto data = jp2k::decode(buffer);
-            std::copy(data.begin(), data.end(), tile.data());
-            return tile;
-        }
-    }
-
-    auto tile = Tensor<T>{shape};
-    {
-        std::unique_lock lk{this->_mutex};
-        TIFFSetDirectory(this->_file, level);
-        if (this->samples != 4)
-            TIFFReadTile(this->_file, tile.data(), ix, iy, 0, 0);
-        else
+    // not Aperio SVS
+    if (this->_codec != 33005) {
+        auto tile = Tensor<T>{shape};
+        if (this->samples == 4)
             // tile._strides = {-tshape[2] * tshape[1], tshape[2], 1};
-            // bgra
             TIFFReadRGBATile(this->_file, ix, iy, (uint32*)tile.data());
+        else
+            TIFFReadTile(this->_file, tile.data(), ix, iy, 0, 0);
+        return tile;
     }
-    return tile;
+
+    // Aperio SVS
+    std::vector<uint8_t> buffer;
+    buffer.resize(TIFFTileSize(this->_file));
+    // printf(" buffer size %zu\n", buffer.size());
+
+    // printf("TIFFReadRawTile\n");
+    auto real_size = TIFFReadRawTile(
+        this->_file,
+        this->_file.position(iy, ix),
+        buffer.data(),
+        buffer.size());
+    buffer.resize(real_size);
+
+    if constexpr (std::is_same_v<std::decay_t<T>, uint8_t>)
+        return Tensor<T>{shape, jp2k::decode(buffer)};
+    else {
+        auto tile = Tensor<T>{shape};
+        auto data = jp2k::decode(buffer);
+        std::copy(data.begin(), data.end(), tile.data());
+        return tile;
+    }
 }
 
 template <typename T>
 Tensor<T> TiffImage::read(Box const& box) const {
-    py::gil_scoped_release no_gil;
     Tensor<T> result{{box.shape(0), box.shape(1), this->samples}};
 
     auto const& shape = this->levels.at(box.level).shape;
@@ -174,13 +172,12 @@ Tensor<T> TiffImage::read(Box const& box) const {
 // ------------------------ non-template definitions ------------------------
 
 auto tiff_open(Path const& path, std::string const& flags) {
-#ifdef _WIN32
-    auto open_fn = TIFFOpenW;
-#else
-    auto open_fn = TIFFOpen;
-#endif
     TIFFSetErrorHandler(nullptr);
-    auto ptr = open_fn(path.c_str(), flags.c_str());
+#ifdef _WIN32
+    auto ptr = TIFFOpenW(path.c_str(), flags.c_str());
+#else
+    auto ptr = TIFFOpen(path.c_str(), flags.c_str());
+#endif
     if (ptr)
         return std::unique_ptr<TIFF, void (*)(TIFF*)>{ptr, TIFFClose};
     throw std::runtime_error{"Failed to open: " + path.generic_string()};
@@ -248,12 +245,14 @@ auto _read_pyramid(File const& f, Size samples) {
         TIFFSetDirectory(f, level);
         if (!TIFFIsTiled(f))
             continue;
-        levels[level] = LevelInfo{{f.get<uint32_t>(TIFFTAG_IMAGELENGTH),
-                                   f.get<uint32_t>(TIFFTAG_IMAGEWIDTH),
-                                   samples},
-                                  {f.get<uint32_t>(TIFFTAG_TILELENGTH),
-                                   f.get<uint32_t>(TIFFTAG_TILEWIDTH),
-                                   samples}};
+        levels[level] = {
+            {f.get<uint32_t>(TIFFTAG_IMAGELENGTH),
+             f.get<uint32_t>(TIFFTAG_IMAGEWIDTH),
+             samples},
+            {f.get<uint32_t>(TIFFTAG_TILELENGTH),
+             f.get<uint32_t>(TIFFTAG_TILEWIDTH),
+             samples}
+        };
     }
     TIFFSetDirectory(f, 0);
     return levels;
@@ -279,6 +278,9 @@ TiffImage::TiffImage(Path const& path)
     samples = _get_samples(_file);
     levels = _read_pyramid(_file, samples);
     dtype = _get_dtype(_file);
+
+    // printf("Codec: %d\n", _codec);
+    // printf("Samples: %zd\n", samples);
 }
 
 } // namespace ts::tiff
