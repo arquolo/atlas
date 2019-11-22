@@ -8,7 +8,6 @@
 
 #include <tiffio.h>
 
-#include "core/path.h"
 #include "tensor.h"
 #include "dispatch.h"
 #include "tiff_j2k.h"

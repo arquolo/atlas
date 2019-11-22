@@ -22,7 +22,7 @@ static void stream_no_op(void*) {}
 
 // this will read from p_buffer to the stream
 static OPJ_SIZE_T stream_read(void* buffer, OPJ_SIZE_T bytes, void* data) {
-    auto* stream = (stream_t*) data;
+    auto* stream = static_cast<stream_t*>(data);
     OPJ_SIZE_T data_end_offset = stream->size - 1;
 
     // check if the current offset is outside our data buffer
@@ -40,7 +40,7 @@ static OPJ_SIZE_T stream_read(void* buffer, OPJ_SIZE_T bytes, void* data) {
 
 // this will write from the stream to p_buffer
 static OPJ_SIZE_T stream_write(void* buffer, OPJ_SIZE_T bytes, void* data) {
-    auto* stream = (stream_t*)data;
+    auto* stream = static_cast<stream_t*>(data);
     OPJ_SIZE_T data_end_offset = stream->size - 1;
 
     // check if the current offset is outside our data buffer
@@ -61,7 +61,7 @@ static OPJ_OFF_T stream_skip(OPJ_OFF_T bytes, void* data) {
     if (bytes < 0)
         return -1;
 
-    auto* stream = (stream_t*)data;
+    auto* stream = static_cast<stream_t*>(data);
     auto data_end_offset = stream->size - 1;
 
     // do not allow moving past the end
@@ -76,7 +76,7 @@ static OPJ_BOOL stream_seek(OPJ_OFF_T bytes, void* data) {
     if (bytes < 0)
         return OPJ_FALSE; // not before the buffer
 
-    auto* stream = (stream_t*)data;
+    auto* stream = static_cast<stream_t*>(data);
 
     if (bytes > (OPJ_OFF_T)(stream->size - 1))
         return OPJ_FALSE; // not after the buffer
@@ -86,7 +86,7 @@ static OPJ_BOOL stream_seek(OPJ_OFF_T bytes, void* data) {
 }
 
 // create a stream to use memory as the input or output
-auto create_default_memory_stream(stream_t* stream, OPJ_BOOL readable) {
+auto create_default_memory_stream(stream_t& stream, OPJ_BOOL readable) {
     opj_stream_t* l_stream = opj_stream_default_create(readable);
     if (!l_stream)
         throw std::runtime_error{"stream is not created"};
@@ -99,8 +99,8 @@ auto create_default_memory_stream(stream_t* stream, OPJ_BOOL readable) {
 
     opj_stream_set_seek_function(l_stream, stream_seek);
     opj_stream_set_skip_function(l_stream, stream_skip);
-    opj_stream_set_user_data(l_stream, stream, stream_no_op);
-    opj_stream_set_user_data_length(l_stream, stream->size);
+    opj_stream_set_user_data(l_stream, &stream, stream_no_op);
+    opj_stream_set_user_data_length(l_stream, stream.size);
 
     return std::unique_ptr(l_stream, opj_stream_destroy);
 }
@@ -114,7 +114,7 @@ std::vector<uint8_t> decode(const std::vector<uint8_t>& buf) {
     stream_t stream{(OPJ_UINT8*)buf.data(), buf.size()};
 
     // open the memory as a stream
-    auto l_stream = create_default_memory_stream(&stream, OPJ_TRUE);
+    auto l_stream = create_default_memory_stream(stream, OPJ_TRUE);
 
     opj_dparameters_t parameters;
     opj_set_default_decoder_parameters(&parameters);
