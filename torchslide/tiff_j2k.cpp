@@ -1,5 +1,5 @@
-#include <openjpeg.h>
-#include <opj_config.h>
+#include <openjpeg-2.3/openjpeg.h>
+#include <openjpeg-2.3/opj_config.h>
 
 #include "tiff_j2k.h"
 
@@ -31,7 +31,7 @@ static void stream_no_op(void*) {}
 
 // this will read from p_buffer to the stream
 static OPJ_SIZE_T stream_read(void* buffer, OPJ_SIZE_T bytes, void* data) {
-    Guard g{__FUNCSIG__};
+    Guard g{__PRETTY_FUNCTION__};
     auto* stream = static_cast<stream_t*>(data);
     OPJ_SIZE_T data_end_offset = stream->size - 1;
 
@@ -52,7 +52,7 @@ static OPJ_SIZE_T stream_read(void* buffer, OPJ_SIZE_T bytes, void* data) {
 
 // this will write from the stream to p_buffer
 static OPJ_SIZE_T stream_write(void* buffer, OPJ_SIZE_T bytes, void* data) {
-    Guard g{__FUNCSIG__};
+    Guard g{__PRETTY_FUNCTION__};
     auto* stream = static_cast<stream_t*>(data);
     OPJ_SIZE_T data_end_offset = stream->size - 1;
 
@@ -73,7 +73,7 @@ static OPJ_SIZE_T stream_write(void* buffer, OPJ_SIZE_T bytes, void* data) {
 
 // moves the current offset forward, but never more than size
 static OPJ_OFF_T stream_skip(OPJ_OFF_T bytes, void* data) {
-    Guard g{__FUNCSIG__};
+    Guard g{__PRETTY_FUNCTION__};
     if (bytes < 0)
         return -1;
 
@@ -90,7 +90,7 @@ static OPJ_OFF_T stream_skip(OPJ_OFF_T bytes, void* data) {
 
 // sets the offset to anywhere in the stream.
 static OPJ_BOOL stream_seek(OPJ_OFF_T bytes, void* data) {
-    Guard g{__FUNCSIG__};
+    Guard g{__PRETTY_FUNCTION__};
     if (bytes < 0)
         return OPJ_FALSE; // not before the buffer
 
@@ -105,7 +105,7 @@ static OPJ_BOOL stream_seek(OPJ_OFF_T bytes, void* data) {
 
 // create a stream to use memory as the input or output
 auto make_memory_stream(stream_t& stream, OPJ_BOOL readable) {
-    Guard g{__FUNCSIG__};
+    Guard g{__PRETTY_FUNCTION__};
     opj_stream_t* l_stream = opj_stream_default_create(readable);
     if (!l_stream)
         throw std::runtime_error{"stream is not created"};
@@ -129,7 +129,7 @@ auto make_memory_stream(stream_t& stream, OPJ_BOOL readable) {
 namespace ts::jp2k {
 
 std::vector<uint8_t> decode(const std::vector<uint8_t>& buf) {
-    Guard g{__FUNCSIG__};
+    Guard g{__PRETTY_FUNCTION__};
     // set up the input buffer as a stream
     stream_t stream{const_cast<OPJ_UINT8*>(buf.data()), buf.size()};
 
