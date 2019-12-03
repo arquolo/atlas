@@ -1,5 +1,3 @@
-#pragma once
-
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -149,13 +147,13 @@ Tensor<T> TiffImage::read(Box const& box) const {
                 static_cast<uint32_t>(ix)
             );
 
-            auto t = tile.view<3>();
+            auto t = tile.template view<3>();
             auto ty_begin = std::max(box.min_[0], iy);
             auto tx_begin = std::max(box.min_[1], ix);
             auto ty_end = std::min({box.max_[0], iy + tshape[0], shape[0]});
             auto tx_end = std::min({box.max_[1], ix + tshape[1], shape[1]});
 
-            auto out = result.view<3>();
+            auto out = result.template view<3>();
             auto out_y = ty_begin - box.min_[0];
             auto out_x = tx_begin - box.min_[1];
 

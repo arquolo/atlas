@@ -25,7 +25,7 @@ std::vector<Size> Image::scales() const noexcept {
 }
 
 std::pair<Level, LevelInfo> Image::get_level(Size scale) const noexcept {
-    auto it = std::find_if(levels.begin(), levels.end(), [=](auto const& p) {
+    auto it = std::find_if(levels.begin(), levels.end(), [=, this](auto const& p) {
         return scale <= get_scale(p.second);
     });
     if (it == levels.end())

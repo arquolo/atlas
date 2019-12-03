@@ -48,7 +48,7 @@ py::buffer as_buffer(Tensor<T>&& t) noexcept {
 }
 
 template <typename T>
-py::buffer as_buffer(Tensor<T> const&) noexcept {
+py::buffer as_buffer(Tensor<T> const& t) noexcept {
     py::gil_scoped_acquire with_gil;
     return py::array_t<T, py::array::c_style | py::array::forcecast>{
         t.shape(), t.data()};
