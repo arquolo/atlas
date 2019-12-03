@@ -1,3 +1,5 @@
+#!/usr/bin/python3
+
 import os
 from io import StringIO
 from concurrent.futures import ThreadPoolExecutor
@@ -61,12 +63,14 @@ class BuildExt(build_ext):
         options = {
             'unix': (
                 [f'-DVERSION_INFO="{self.distribution.get_version()}"',
-                 '-std=c++17',
+                 '-std=c++2a',
                  '-fvisibility=hidden',
                  '-O3'],
+                ['-Wl,-strip-all'],
                 {'compile': compile_}),
             'msvc': (
                 [f'-DVERSION_INFO=\\"{self.distribution.get_version()}\\"'],
+                [],
                 {'compile': compile_, 'initialize': initialize}
             )
         }
@@ -74,9 +78,11 @@ class BuildExt(build_ext):
         if option is None:
             raise RuntimeError(f'only {set(options)} compilers supported')
 
-        args, patches = option
+        cargs, largs, patches = option
         for ext in self.extensions:
-            ext.extra_compile_args = args
+            ext.extra_compile_args = cargs
+            ext.extra_link_args = largs
+
         for target, wrapper in patches.items():
             patch(self.compiler.__class__, target, wrapper)
         super().build_extensions()
