@@ -10,6 +10,8 @@
 #include "dispatch.h"
 #include "tiff_j2k.h"
 
+#define _TIFF_JPEG2K 33005
+
 namespace ts::tiff {
 
 // ------------------------------ declarations ------------------------------
@@ -87,7 +89,7 @@ Tensor<T> TiffImage::_read_at(Level level, uint32_t iy, uint32_t ix) const {
     TIFFSetDirectory(this->_file, level);
 
     // not Aperio SVS
-    if (this->_codec != 33005) {
+    // if (this->_codec != _TIFF_JPEG2K) {
         auto tile = Tensor<T>{shape};
         if (this->samples == 4)
             // tile._strides = {-tshape[2] * tshape[1], tshape[2], 1};
@@ -95,9 +97,10 @@ Tensor<T> TiffImage::_read_at(Level level, uint32_t iy, uint32_t ix) const {
         else
             TIFFReadTile(this->_file, tile.data(), ix, iy, 0, 0);
         return tile;
-    }
+    // }
 
     // Aperio SVS
+    /*
     std::vector<uint8_t> buffer;
     buffer.resize(TIFFTileSize(this->_file));
 
@@ -116,6 +119,7 @@ Tensor<T> TiffImage::_read_at(Level level, uint32_t iy, uint32_t ix) const {
         std::copy(data.begin(), data.end(), tile.data());
         return tile;
     }
+    */
 }
 
 template <typename T>
@@ -258,6 +262,9 @@ TiffImage::TiffImage(Path const& path)
   : _file{path, "rm"}
   , _codec{_file.get<uint16_t>(TIFFTAG_COMPRESSION)}
 {
+    if (_codec == _TIFF_JPEG2K)
+        throw std::runtime_error{"JPEG2000 encoded tile is not yet supported"};
+
     auto c_descr = _file.get_defaulted<char const*>(TIFFTAG_IMAGEDESCRIPTION);
     if (c_descr) {
         std::string descr{c_descr.value()};

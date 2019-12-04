@@ -32,7 +32,10 @@ for filename in sorted(Path('..').glob('*.svs')):
     filename = str(filename)
     print(filename)
 
-    image = ts.Image(filename)
+    try:
+        image = ts.Image(filename)
+    except RuntimeError:
+        continue
     print(image.shape, image.scales)
 
     scales = image.scales
