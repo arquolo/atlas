@@ -28,8 +28,8 @@ def show(tile, scale):
 print(f'Version: {ts.torchslide.__version__}')
 
 n = 1  # 25
-for filename in sorted(Path('..').glob('*.svs')):
-    filename = str(filename)
+for p in sorted(Path('..').glob('*.svs')):
+    filename = p.as_posix()
     print(filename)
 
     try:
