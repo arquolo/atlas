@@ -3,6 +3,10 @@
 
 #include "tiff_j2k.h"
 
+#ifdef _MSC_VER
+#define __PRETTY_FUNCTION__ __FUNCSIG__
+#endif
+
 namespace std {
 template <typename T, typename Deleter>
 unique_ptr(T* ptr, Deleter deleter) -> unique_ptr<T, Deleter>;

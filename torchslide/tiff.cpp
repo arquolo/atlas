@@ -100,9 +100,7 @@ Tensor<T> TiffImage::_read_at(Level level, uint32_t iy, uint32_t ix) const {
     // Aperio SVS
     std::vector<uint8_t> buffer;
     buffer.resize(TIFFTileSize(this->_file));
-    // printf(" buffer size %zu\n", buffer.size());
 
-    // printf("TIFFReadRawTile\n");
     auto real_size = TIFFReadRawTile(
         this->_file,
         this->_file.position(iy, ix),
@@ -276,9 +274,6 @@ TiffImage::TiffImage(Path const& path)
     samples = _get_samples(_file);
     levels = _read_pyramid(_file, samples);
     dtype = _get_dtype(_file);
-
-    // printf("Codec: %d\n", _codec);
-    // printf("Samples: %zd\n", samples);
 }
 
 } // namespace ts::tiff
