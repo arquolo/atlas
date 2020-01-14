@@ -31,7 +31,19 @@ struct lambda<Ret(Cls::*)(Args...) const> : _lambda_types<Ret, Cls, Args...> {};
 namespace ts {
 
 template <typename Fn>
-class Cache {
+struct Cache {
+    Cache() = default;
+    Cache(Fn&& fn, size_t capacity)
+      : fn_{fn}
+      , capacity_{capacity}
+    {}
+
+    template <typename... Args>
+    Value operator()(Args... args) {
+        return this->get_future({args...}).get();
+    }
+
+private:
     using Ret = typename traits::lambda<Fn>::result;
     using Key = typename traits::lambda<Fn>::args;
     using Value = std::shared_ptr<Ret>;
@@ -103,18 +115,6 @@ class Cache {
         });
         this->futures_[key] = pending;
         return pending;
-    }
-
-public:
-    Cache() = default;
-    Cache(Fn&& fn, size_t capacity)
-      : fn_{fn}
-      , capacity_{capacity}
-    {}
-
-    template <typename... Args>
-    Value operator()(Args... args) {
-        return this->get_future({args...}).get();
     }
 };
 

@@ -109,7 +109,7 @@ setuptools.setup(
                 './__dependencies__/include',
             ],
             library_dirs=['__dependencies__/lib'],
-            libraries=['openjp2', 'tiff'],
+            libraries=['libopenslide', 'openjp2', 'tiff'],
             language='c++'
         ),
     ],

@@ -29,13 +29,12 @@ Shape_<N> _to_strides(ShapeAny const& shape) noexcept {
 } // namespace _detail
 
 template <typename T>
-class Tensor {
+struct Tensor {
     using _Storage = std::vector<T>;
 
     ShapeAny _shape;
     _Storage _data = {};
 
-public:
     Tensor(ShapeAny shape) : _shape{std::move(shape)} {
         _data.resize(_detail::_to_size(_shape));
     }

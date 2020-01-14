@@ -8,18 +8,15 @@
 
 #include "tensor.h"
 #include "dispatch.h"
-#include "tiff_j2k.h"
 
-#define _TIFF_JPEG2K 33005
+#define _TIFF_JPEG2K_YUV 33003
+#define _TIFF_JPEG2K_RGB 33005
 
 namespace ts::tiff {
 
 // ------------------------------ declarations ------------------------------
 
-class File {
-    std::unique_ptr<TIFF, void (*)(TIFF*)> _ptr;
-
-public:
+struct File {
     File(Path const& path, std::string const& flags);
 
     /// for compatibility
@@ -37,23 +34,34 @@ public:
 
     template <typename T>
     std::optional<T> get_defaulted(uint32 tag) const noexcept;
+
+private:
+    std::unique_ptr<TIFF, void (*)(TIFF*)> _ptr;
 };
 
-class TiffImage final : public Dispatch<TiffImage> {
+struct TiffImage final : Dispatch<TiffImage> {
+    static inline constexpr int priority = 0;
+    static inline constexpr char const* extensions[] = {".svs", ".tif", ".tiff"};
+
+    template <class... Ts>
+    TiffImage(File file, uint16_t codec, Ts&&... args) noexcept
+      : Dispatch{std::forward<Ts>(args)...}
+      , _file{std::move(file)}
+      , _codec{codec}
+    {}
+
+    static std::unique_ptr<Image> make_this(Path const& path);
+
+    template <typename T>
+    Tensor<T> read(Box const& box) const;
+
+private:
     File const _file;
     uint16_t const _codec = 0;
     std::mutex mutable _mutex;
 
     template <typename T>
     Tensor<T> _read_at(Level level, uint32_t iy, uint32_t ix) const;
-
-public:
-    static inline constexpr char const* extensions[] = {".svs", ".tif", ".tiff"};
-
-    TiffImage(Path const& path);
-
-    template <typename T>
-    Tensor<T> read(Box const& box) const;
 };
 
 // -------------------------- template definitions --------------------------
@@ -88,38 +96,17 @@ Tensor<T> TiffImage::_read_at(Level level, uint32_t iy, uint32_t ix) const {
     std::unique_lock lk{this->_mutex};
     TIFFSetDirectory(this->_file, level);
 
-    // not Aperio SVS
-    // if (this->_codec != _TIFF_JPEG2K) {
-        auto tile = Tensor<T>{shape};
-        if (this->samples == 4)
-            // tile._strides = {-tshape[2] * tshape[1], tshape[2], 1};
-            TIFFReadRGBATile(this->_file, ix, iy, (uint32*)tile.data());
-        else
-            TIFFReadTile(this->_file, tile.data(), ix, iy, 0, 0);
-        return tile;
-    // }
-
-    // Aperio SVS
-    /*
-    std::vector<uint8_t> buffer;
-    buffer.resize(TIFFTileSize(this->_file));
-
-    auto real_size = TIFFReadRawTile(
-        this->_file,
-        this->_file.position(iy, ix),
-        buffer.data(),
-        buffer.size());
-    buffer.resize(real_size);
-
-    if constexpr (std::is_same_v<std::decay_t<T>, uint8_t>)
-        return Tensor<T>{shape, jp2k::decode(buffer)};
-    else {
-        auto tile = Tensor<T>{shape};
-        auto data = jp2k::decode(buffer);
-        std::copy(data.begin(), data.end(), tile.data());
-        return tile;
-    }
-    */
+    auto tile = Tensor<T>{shape};
+    if (this->samples == 4) {
+        Tensor<T> buf{shape};
+        TIFFReadRGBATile(this->_file, ix, iy, (uint32*)buf.data());
+        auto b = buf.template view<3>();
+        auto t = tile.template view<3>();
+        for (Size y = 0; y < shape[0]; ++y)
+            std::copy(&b({y}), &b({y + 1}), &t({shape[0] - y - 1}));
+    } else
+        TIFFReadTile(this->_file, tile.data(), ix, iy, 0, 0);
+    return tile;
 }
 
 template <typename T>
@@ -258,14 +245,14 @@ auto _read_pyramid(File const& f, Size samples) {
     return levels;
 }
 
-TiffImage::TiffImage(Path const& path)
-  : _file{path, "rm"}
-  , _codec{_file.get<uint16_t>(TIFFTAG_COMPRESSION)}
-{
-    if (_codec == _TIFF_JPEG2K)
+std::unique_ptr<Image> TiffImage::make_this(Path const& path) {
+    auto file = File{path, "rm"};
+    auto codec = file.get<uint16_t>(TIFFTAG_COMPRESSION);
+
+    if (codec == _TIFF_JPEG2K_YUV || codec == _TIFF_JPEG2K_RGB)
         throw std::runtime_error{"JPEG2000 encoded tile is not yet supported"};
 
-    auto c_descr = _file.get_defaulted<char const*>(TIFFTAG_IMAGEDESCRIPTION);
+    auto c_descr = file.get_defaulted<char const*>(TIFFTAG_IMAGEDESCRIPTION);
     if (c_descr) {
         std::string descr{c_descr.value()};
         if (descr.find("DICOM") != std::string::npos
@@ -273,14 +260,18 @@ TiffImage::TiffImage(Path const& path)
                 || descr.find("XML") != std::string::npos)
             throw std::runtime_error{"Unsupported format: " + descr};
     }
-    if (!TIFFIsTiled(_file))
+    if (!TIFFIsTiled(file))
         throw std::runtime_error{"Tiff is not tiled"};
-    if (_file.get<uint16_t>(TIFFTAG_PLANARCONFIG) != PLANARCONFIG_CONTIG)
+    if (file.get<uint16_t>(TIFFTAG_PLANARCONFIG) != PLANARCONFIG_CONTIG)
         throw std::runtime_error{"Tiff is not contiguous"};
 
-    samples = _get_samples(_file);
-    levels = _read_pyramid(_file, samples);
-    dtype = _get_dtype(_file);
+    auto dtype = _get_dtype(file);
+    auto samples = _get_samples(file);
+    auto levels = _read_pyramid(file, samples);
+    return std::make_unique<TiffImage>(
+        std::move(file), codec,
+        std::move(dtype), std::move(samples), std::move(levels)
+    );
 }
 
 } // namespace ts::tiff

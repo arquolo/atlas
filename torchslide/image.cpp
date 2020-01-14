@@ -11,20 +11,20 @@
 namespace py = pybind11;
 using namespace ts;
 
-Size Image::get_scale(LevelInfo const& info) const noexcept {
+Size ImageInfo::get_scale(LevelInfo const& info) const noexcept {
     return static_cast<Size>(
         std::round(static_cast<double>(this->levels.at(0).shape.front()) /
                    static_cast<double>(info.shape.front())));
 }
 
-std::vector<Size> Image::scales() const noexcept {
+std::vector<Size> ImageInfo::scales() const noexcept {
     std::vector<Size> scales_;
     for (auto const& [_, level_info] : this->levels)
         scales_.push_back(this->get_scale(level_info));
     return scales_;
 }
 
-std::pair<Level, LevelInfo> Image::get_level(Size scale) const noexcept {
+std::pair<Level, LevelInfo> ImageInfo::get_level(Size scale) const noexcept {
     auto it = std::find_if(levels.begin(), levels.end(), [=, this](auto const& p) {
         return scale <= get_scale(p.second);
     });
@@ -67,19 +67,6 @@ get_item(Image const& self, std::tuple<py::slice, py::slice> slices) {
 PYBIND11_MODULE(torchslide, m) {
     m.attr("__version__") = VERSION_INFO;
     m.attr("__all__") = py::make_tuple("Image");
-    // m.attr("__all__") = py::make_tuple("Bitstream", "Interpolation", "Image");
-
-    // py::enum_<Bitstream>(m, "Bitstream")
-    //     .value("RAW", Bitstream::RAW)
-    //     .value("LZW", Bitstream::LZW)
-    //     .value("JPEG", Bitstream::JPEG)
-    //     .value("JPEG2000", Bitstream::JPEG2000)
-    //     ;
-
-    // py::enum_<Interpolation>(m, "Interpolation")
-    //     .value("Nearest", Interpolation::Nearest)
-    //     .value("Linear", Interpolation::Linear)
-    //     ;
 
     py::class_<Image>(m, "Image")
         .def(py::init(&Image::make), py::arg("path"))

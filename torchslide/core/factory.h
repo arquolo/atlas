@@ -1,7 +1,9 @@
 #pragma once
 
 #include <filesystem>
+#include <map>
 #include <memory>
+#include <stdexcept>
 #include <string>
 #include <unordered_map>
 
@@ -10,44 +12,59 @@ namespace ts {
 using Path = std::filesystem::path;
 
 template <class Base>
-class Factory {
+struct Factory {
+    static std::unique_ptr<Base> make(std::string const& filename) {
+        Path path{filename};
+        auto it = data().find(path.extension().string());
+        if (it == data().end())
+            throw std::runtime_error{"Unsupported extension"};
+
+        std::exception_ptr eptr;
+        for (auto&& [prio, factory]: it->second)
+            try {
+                return factory(path);
+            } catch (...) {
+                eptr = std::current_exception();
+            }
+        if (eptr)
+            std::rethrow_exception(eptr);
+        return {};
+    }
+
+    template <class Derived>
+    struct Register : Base {
+        template <class... Ts>
+        Register(Ts&&... args) : Base{std::forward<Ts>(args)...} {
+            (void)is_registered;
+        }
+
+    private:
+        static bool register_this() {
+            static_assert(std::is_base_of_v<Register<Derived>, Derived>,
+                          "Unregistered!!");
+            for (const auto& ext : Derived::extensions) {
+                auto& fc = Factory::data();
+                if (!fc.contains(ext))
+                    fc[ext] = {};
+                fc[ext][Derived::priority] = &Derived::make_this;
+            }
+            return true;
+        }
+
+        inline static bool is_registered = register_this();
+    };
+
+private:
     friend Base;
     Factory() = default;
 
     static auto& data() {
         static std::unordered_map<
             std::string,
-            std::unique_ptr<Base>(*)(const Path&)> factories;
+            std::map<int, std::unique_ptr<Base> (*)(const Path&)>>
+            factories;
         return factories;
     }
-
-public:
-    static std::unique_ptr<Base> make(std::string const& filename) {
-        Path path{filename};
-        if (auto it = data().find(path.extension().string());
-                it != data().end())
-            return it->second(path);
-        throw std::runtime_error{"Unsupported extension"};
-    }
-
-    template <class Derived>
-    class Register : public Base {
-        static bool register_this() {
-            static_assert(std::is_base_of_v<Register<Derived>, Derived>,
-                          "Unregistered!!");
-            constexpr auto func = [](Path const& path) -> std::unique_ptr<Base> {
-                return std::make_unique<Derived>(path);
-            };
-            for (const auto& ext : Derived::extensions)
-                Factory::data()[ext] = func;
-            return true;
-        }
-
-        inline static bool is_registered = register_this();
-
-    public:
-        Register() { (void)is_registered; }
-    };
 };
 
 } // namespace ts

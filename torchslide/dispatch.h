@@ -10,10 +10,9 @@ namespace py = pybind11;
 namespace ts {
 
 template <class Impl>
-class Dispatch : public Image::Register<Impl> {
-    auto* derived() const noexcept { return static_cast<Impl const*>(this); }
+struct Dispatch : Image::Register<Impl> {
+    using Image::Register<Impl>::Register;
 
-public:
     /// Virtual method to read tile of erased type.
     /// Gets access to implementation via `derived()`, then calls `read<T>` using T from `dtype`.
     /// So full stack is:
@@ -31,6 +30,9 @@ public:
 
     template <typename T>
     Tensor<T> read(Box const& box) const;
+
+private:
+    auto* derived() const noexcept { return static_cast<Impl const*>(this); }
 };
 
 template <typename T>
