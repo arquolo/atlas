@@ -21,7 +21,7 @@ private:
 
 struct OpenSlide final : Dispatch<OpenSlide> {
     static inline constexpr int priority = 1;
-    static inline constexpr const char* extensions[] = {
+    static inline constexpr char const* extensions[] = {
         ".bif", ".ndpi", ".mrxs", ".scn", ".svs", ".svslide", ".tif", ".tiff", ".vms", ".vmu"};
 
     template <class... Ts>
@@ -57,7 +57,7 @@ auto os_open(Path const& path) {
         throw std::runtime_error{"Cant open without vendor"};
 
     auto ptr = openslide_open(c_path.c_str());
-    if (const char* error = openslide_get_error(ptr))
+    if (char const* error = openslide_get_error(ptr))
         throw std::runtime_error{error};
 
     return ptr;
@@ -117,14 +117,13 @@ std::unique_ptr<Image> OpenSlide::make_this(Path const& path) {
 // We are using OpenSlides caching system instead of our own.
 // void OpenSlide::cache_capacity(size_t capacity) {
 // #ifdef CUSTOM_OPENSLIDE
-//     if (slide_)
-//         openslide_set_cache_size(slide_, capacity);
+//     openslide_set_cache_size(_file_, capacity);
 // #endif
 // }
 
-// std::string OpenSlide::get(const std::string& name) const {
+// std::string OpenSlide::get(std::string const& name) const {
 //     std::string value;
-//     if (value = openslide_get_property_value(file_, name.c_str()))
+//     if (value = openslide_get_property_value(_file, name.c_str()))
 //         return value;
 //     return {};
 // }
@@ -145,7 +144,7 @@ Tensor<uint8_t> OpenSlide::read(Box const& box) const {
     for (Size y = 0; y < box.shape(0); ++y)
         for (Size x = 0; x < box.shape(1); ++x) {
             std::reverse_copy(&b({y, x}), &b({y, x, 3}), &r({y, x, 3}));
-            // const auto alpha = r({y, x, 3});
+            // auto const alpha = r({y, x, 3});
             // if (alpha == 255) {
             //     r({y, x, 0}) = b({y, x, 2});
             //     r({y, x, 1}) = b({y, x, 1});

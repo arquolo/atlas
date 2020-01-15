@@ -39,15 +39,12 @@ struct Factory {
         }
 
     private:
-        static bool register_this() {
-            static_assert(std::is_base_of_v<Register<Derived>, Derived>,
-                          "Unregistered!!");
-            for (const auto& ext : Derived::extensions) {
-                auto& fc = Factory::data();
-                if (!fc.contains(ext))
-                    fc[ext] = {};
-                fc[ext][Derived::priority] = &Derived::make_this;
-            }
+        static bool register_this() noexcept {
+            static_assert(
+                std::is_base_of_v<Register<Derived>, Derived>,
+                "Class is not inherited from Base::Register!");
+            for (auto const& ext : Derived::extensions)
+                Factory::data()[ext][Derived::priority] = &Derived::make_this;
             return true;
         }
 
@@ -58,10 +55,10 @@ private:
     friend Base;
     Factory() = default;
 
-    static auto& data() {
+    static auto& data() noexcept {
         static std::unordered_map<
             std::string,
-            std::map<int, std::unique_ptr<Base> (*)(const Path&)>>
+            std::map<int, std::unique_ptr<Base> (*)(Path const&)>>
             factories;
         return factories;
     }
