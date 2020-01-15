@@ -10,6 +10,7 @@ import setuptools
 from setuptools.command.build_ext import build_ext
 
 PACKAGE = 'torchslide'
+LIBRARIES = ['tiff', ('lib' if os.name == 'nt' else '') + 'openslide']
 
 
 class BinaryDistribution(setuptools.Distribution):
@@ -109,7 +110,7 @@ setuptools.setup(
                 './__dependencies__/include',
             ],
             library_dirs=['__dependencies__/lib'],
-            libraries=['libopenslide', 'openjp2', 'tiff'],
+            libraries=LIBRARIES,
             language='c++'
         ),
     ],

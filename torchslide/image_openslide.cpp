@@ -1,5 +1,3 @@
-#pragma once
-
 #include <memory>
 #include <sstream>
 
@@ -40,8 +38,8 @@ struct OpenSlide final : Dispatch<OpenSlide> {
         throw std::runtime_error{"Not implemented"};
     }
 
-    template <>
-    Tensor<uint8_t> read(Box const& box) const;
+    // template <>
+    // Tensor<uint8_t> read(Box const& box) const;
 
 private:
     File _file;
