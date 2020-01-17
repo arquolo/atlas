@@ -1,16 +1,20 @@
 #!/usr/bin/python3
 
+import contextlib
+import functools
 import os
-from io import StringIO
 from concurrent.futures import ThreadPoolExecutor
-from contextlib import redirect_stdout
 from pathlib import Path
 
 import setuptools
 from setuptools.command.build_ext import build_ext
 
 PACKAGE = 'torchslide'
-LIBRARIES = ['tiff', ('lib' if os.name == 'nt' else '') + 'openslide']
+LIBRARIES = [
+    'openjp2',
+    'tiff',
+    ('lib' if os.name == 'nt' else '') + 'openslide',
+]
 
 
 class BinaryDistribution(setuptools.Distribution):
@@ -18,20 +22,10 @@ class BinaryDistribution(setuptools.Distribution):
         return True
 
 
-def patch(cls, target, wrapper):
-    wrapped = getattr(cls, target)
-
-    def wrapper_(*args, **kwargs):
-        return wrapper(*args, wrapped=wrapped, **kwargs)
-
-    setattr(cls, target, wrapper_)
-
-
 def initialize(self, *, wrapped=None):
     wrapped(self)
     self.compile_options = [
         '-nologo', '-DNDEBUG', '-W4', '-MD', '-std:c++latest',
-        # '-O1',  # minimize size
         '-O2',  # maximize speed
     ]
     self.ldflags_shared.clear()
@@ -44,8 +38,9 @@ def compile_(self, sources, wrapped=None, **kwargs):
         return wrapped(self, [src], **kwargs)
 
     with ThreadPoolExecutor(os.cpu_count()) as pool:
-        with redirect_stdout(StringIO()):
-            return [obj for obj, in pool.map(worker, sources)]
+        with open(os.devnull, 'w') as fp:
+            with contextlib.redirect_stdout(fp):
+                return [obj for obj, in pool.map(worker, sources)]
 
 
 class PyBindInclude:
@@ -85,7 +80,9 @@ class BuildExt(build_ext):
             ext.extra_link_args = largs
 
         for target, wrapper in patches.items():
-            patch(self.compiler.__class__, target, wrapper)
+            wrapped = getattr(self.compiler.__class__, target)
+            setattr(self.compiler.__class__, target,
+                    functools.partialmethod(wrapper, wrapped=wrapped))
         super().build_extensions()
 
 
