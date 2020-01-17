@@ -38,15 +38,11 @@ struct OpenSlide final : Dispatch<OpenSlide> {
         throw std::runtime_error{"Not implemented"};
     }
 
-    // template <>
-    // Tensor<uint8_t> read(Box const& box) const;
-
 private:
     File _file;
     std::array<uint8_t, 3> _bg_color;
 
     // std::string get(std::string const& name) const;
-    // void cache_capacity(size_t capacity);
 };
 
 // ------------------------ non-template definitions ------------------------
@@ -114,13 +110,6 @@ std::unique_ptr<Image> OpenSlide::make_this(Path const& path) {
     );
 }
 
-// We are using OpenSlides caching system instead of our own.
-// void OpenSlide::cache_capacity(size_t capacity) {
-// #ifdef CUSTOM_OPENSLIDE
-//     openslide_set_cache_size(_file_, capacity);
-// #endif
-// }
-
 // std::string OpenSlide::get(std::string const& name) const {
 //     std::string value;
 //     if (value = openslide_get_property_value(_file, name.c_str()))
@@ -131,9 +120,10 @@ std::unique_ptr<Image> OpenSlide::make_this(Path const& path) {
 template <>
 Tensor<uint8_t> OpenSlide::read(Box const& box) const {
     Tensor<uint8_t> buf{{box.shape(0), box.shape(1), Size{4}}};
+    auto scale = this->scales()[box.level];
     openslide_read_region(
         _file, reinterpret_cast<uint32_t*>(buf.data()),
-        box.min_[1], box.min_[0], box.level,
+        box.min_[1] * scale, box.min_[0] * scale, box.level,
         box.shape(1), box.shape(0));
 
     Tensor<uint8_t> result{{box.shape(0), box.shape(1), Size{3}}};
