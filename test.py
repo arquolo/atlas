@@ -15,7 +15,9 @@ def read_open(scale, filename):
     image = ts.Image(filename)
     # return scale, image[::scale, ::scale]
     h, w, *_ = image.shape
-    return scale, image[-1000:h + 1000:scale, -1000:w + 1000:scale]
+    # return scale, image[-1000:h + 1000 :scale, -1000:w + 1000 :scale]
+    # return scale, image[int(h * 0.25) : int(h * 0.75) :scale, int(w * 0.25) : int(w * 0.75) :scale]
+    return scale, image[int(h * -.1):int(h * 1.1):scale, int(w * -.1):int(w * 1.1):scale]
 
 
 def show(tile, scale):
@@ -35,6 +37,7 @@ for p in sorted(Path('..').glob('*.svs')):
 
     try:
         image = ts.Image(filename)
+        print(image.spacing)
     except RuntimeError as exc:
         print(f'Dead: {exc!r}')
         continue

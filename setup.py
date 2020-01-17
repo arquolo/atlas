@@ -100,7 +100,7 @@ setuptools.setup(
     ext_modules=[
         setuptools.Extension(
             PACKAGE,
-            list(map(str, Path(__file__).parent.glob(f'{PACKAGE}/*.cpp'))),
+            [*map(str, Path(__file__).parent.glob(f'{PACKAGE}/*.cpp'))],
             include_dirs=[
                 PyBindInclude(user=True),
                 f'./{PACKAGE}',

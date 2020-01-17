@@ -14,10 +14,18 @@ namespace ts {
 // enum class Bitstream : int { RAW, LZW, JPEG, JPEG2000 };
 // enum class Interpolation : int { Nearest, Linear };
 
+struct LevelInfo {
+    Shape shape;
+    Shape tile_shape;
+};
+
+using Spacing = std::array<float, 2>;
+
 struct ImageInfo {
     DType dtype;
     Size samples;
     std::map<Level, LevelInfo> levels;
+    Spacing spacing;
 
     Size get_scale(LevelInfo const& info) const noexcept;
     std::vector<Size> scales() const noexcept;

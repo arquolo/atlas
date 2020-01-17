@@ -17,13 +17,7 @@ template <size_t N>
 using Shape_ = std::array<Size, N>;
 
 using Shape = Shape_<3>;
-
 using ShapeAny = pybind11::detail::any_container<Size>;
-
-struct LevelInfo {
-    Shape shape;
-    Shape tile_shape;
-};
 
 using DType = std::variant<uint8_t, uint16_t, uint32_t, float>;
 

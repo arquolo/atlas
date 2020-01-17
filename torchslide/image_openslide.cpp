@@ -41,8 +41,6 @@ struct OpenSlide final : Dispatch<OpenSlide> {
 private:
     File _file;
     std::array<uint8_t, 3> _bg_color;
-
-    // std::string get(std::string const& name) const;
 };
 
 // ------------------------ non-template definitions ------------------------
@@ -84,15 +82,13 @@ std::unique_ptr<Image> OpenSlide::make_this(Path const& path) {
         };
     }
 
-    // std::vector<float> spacing;
-    // for (auto tag: {OPENSLIDE_PROPERTY_NAME_MPP_Y, OPENSLIDE_PROPERTY_NAME_MPP_X}) {
-    //     std::stringstream ssm{openslide_get_property_value(file, tag)};
-    //     if (ssm) {
-    //         float tmp;
-    //         ssm >> tmp;
-    //         spacing.push_back(tmp);
-    //     }
-    // }
+    Spacing spacing;
+    int i = 0;
+    for (auto tag: {OPENSLIDE_PROPERTY_NAME_MPP_Y, OPENSLIDE_PROPERTY_NAME_MPP_X}) {
+        char const* ssm = openslide_get_property_value(file, tag);
+        if (ssm)
+            spacing[i++] = std::stof(ssm);
+    }
 
     // Get background color if present
     std::array<uint8_t, 3> bg_color = {255, 255, 255};
@@ -106,16 +102,10 @@ std::unique_ptr<Image> OpenSlide::make_this(Path const& path) {
     }
 
     return std::make_unique<OpenSlide>(
-        std::move(file), std::move(bg_color), uint8_t{}, 3, std::move(levels)
+        std::move(file), std::move(bg_color),
+        uint8_t{}, 3, std::move(levels), std::move(spacing)
     );
 }
-
-// std::string OpenSlide::get(std::string const& name) const {
-//     std::string value;
-//     if (value = openslide_get_property_value(_file, name.c_str()))
-//         return value;
-//     return {};
-// }
 
 template <>
 Tensor<uint8_t> OpenSlide::read(Box const& box) const {

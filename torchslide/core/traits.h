@@ -16,6 +16,11 @@ constexpr std::string_view type_name() {
     return fn.substr(_begin, _end - _begin);
 }
 
+template <typename T, typename _Deleter>
+constexpr auto make_owner(T* ptr, _Deleter deleter) {
+    return std::unique_ptr<T, _Deleter>{ptr, deleter};
+}
+
 } // namespace ts
 
 // template<typename ...Args>

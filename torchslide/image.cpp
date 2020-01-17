@@ -80,9 +80,14 @@ PYBIND11_MODULE(torchslide, m) {
             "Data type")
         .def_property_readonly(
             "shape",
-            [](Image const& self) { return ts::as_tuple(self.levels.at(0).shape); },
+            [](Image const& self) {
+                return ts::as_tuple(self.levels.at(0).shape);
+            },
             "Shape")
+        .def_property_readonly(
+            "spacing",
+            [](Image const& self) { return self.spacing; },
+            "Pixel size")
         .def_property_readonly("scales", &Image::scales, "Scales")
-        .def("__getitem__", &get_item, py::arg("slices"))
-        ;
+        .def("__getitem__", &get_item, py::arg("slices"));
 }

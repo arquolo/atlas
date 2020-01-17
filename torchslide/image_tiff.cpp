@@ -6,8 +6,9 @@
 
 #include <tiffio.h>
 
-#include "tensor.h"
+#include "core/traits.h"
 #include "dispatch.h"
+#include "tensor.h"
 
 #define _TIFF_JPEG2K_YUV 33003
 #define _TIFF_JPEG2K_RGB 33005
@@ -166,7 +167,8 @@ auto tiff_open(Path const& path, std::string const& flags) {
     auto ptr = TIFFOpen(path.c_str(), flags.c_str());
 #endif
     if (ptr)
-        return std::unique_ptr<TIFF, void (*)(TIFF*)>{ptr, TIFFClose};
+        return make_owner(ptr, TIFFClose);
+        // return std::unique_ptr<TIFF, void (*)(TIFF*)>{ptr, TIFFClose};
     throw std::runtime_error{"Failed to open: " + path.generic_string()};
 }
 
@@ -268,9 +270,14 @@ std::unique_ptr<Image> TiffImage::make_this(Path const& path) {
     auto dtype = _get_dtype(file);
     auto samples = _get_samples(file);
     auto levels = _read_pyramid(file, samples);
+    Spacing spacing = {
+        10000 / file.get<float>(TIFFTAG_YRESOLUTION),
+        10000 / file.get<float>(TIFFTAG_XRESOLUTION),
+    };
+
     return std::make_unique<TiffImage>(
         std::move(file), codec,
-        std::move(dtype), std::move(samples), std::move(levels)
+        std::move(dtype), std::move(samples), std::move(levels), std::move(spacing)
     );
 }
 
