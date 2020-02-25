@@ -117,7 +117,7 @@ Tensor<T> TiffImage::read(Box const& box) const {
     auto const& shape = this->levels.at(box.level).shape;
     auto crop = box.fit_to(shape);
     if (!crop.area())
-        return result;
+        return Tensor<T>{{box.shape(0), box.shape(1), this->samples}};
 
     auto const& tshape = this->levels.at(box.level).tile_shape;
     Size min_[] = {
@@ -129,6 +129,16 @@ Tensor<T> TiffImage::read(Box const& box) const {
         ceil(crop.max_[1], tshape[1]),
     };
 
+    /// read exact one tile
+    if ((min_[0] == crop.min_[0]) && (min_[0] + tshape[0] == crop.max_[0])
+        && (min_[1] == crop.min_[1]) && (min_[1] + tshape[1] == crop.max_[1]))
+        return this->_read_at<T>(
+            box.level,
+            static_cast<uint32_t>(min_[0]),
+            static_cast<uint32_t>(min_[1]));
+
+    /// combine tile from small ones
+    Tensor<T> result{{box.shape(0), box.shape(1), this->samples}};
     for (auto iy = min_[0]; iy < max_[0]; iy += tshape[0])
         for (auto ix = min_[1]; ix < max_[1]; ix += tshape[1]) {
             auto const tile = this->_read_at<T>(
