@@ -122,23 +122,8 @@ Tensor<uint8_t> OpenSlide::read(Box const& box) const {
     auto r = result.template view<3>();
 
     for (Size y = 0; y < box.shape(0); ++y)
-        for (Size x = 0; x < box.shape(1); ++x) {
+        for (Size x = 0; x < box.shape(1); ++x)
             std::reverse_copy(&b({y, x}), &b({y, x, 3}), &r({y, x, 3}));
-            // auto const alpha = r({y, x, 3});
-            // if (alpha == 255) {
-            //     r({y, x, 0}) = b({y, x, 2});
-            //     r({y, x, 1}) = b({y, x, 1});
-            //     r({y, x, 2}) = b({y, x, 0});
-            // } else if (alpha == 0) {
-            //     r({y, x, 0}) = _bg_color[0];
-            //     r({y, x, 1}) = _bg_color[1];
-            //     r({y, x, 2}) = _bg_color[2];
-            // } else {
-            //     r({y, x, 0}) = (255.f * b({y, x, 2})) / alpha;
-            //     r({y, x, 1}) = (255.f * b({y, x, 1})) / alpha;
-            //     r({y, x, 2}) = (255.f * b({y, x, 0})) / alpha;
-            // }
-        }
     return result;
 }
 
