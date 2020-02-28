@@ -42,14 +42,14 @@ private:
 
 struct TiffImage final : Dispatch<TiffImage> {
     static inline constexpr int priority = 0;
-    static inline constexpr char const* extensions[] = {".svs", ".tif", ".tiff"};
+    static inline constexpr char const* extensions[]
+        = {".svs", ".tif", ".tiff"};
 
     template <class... Ts>
     TiffImage(File file, uint16_t codec, Ts&&... args) noexcept
       : Dispatch{std::forward<Ts>(args)...}
       , _file{std::move(file)}
-      , _codec{codec}
-    {}
+      , _codec{codec} { }
 
     static std::unique_ptr<Image> make_this(Path const& path);
 
@@ -107,13 +107,13 @@ Tensor<T> TiffImage::_read_at(Level level, uint32_t iy, uint32_t ix) const {
             std::copy(&b({y}), &b({y + 1}), &t({shape[0] - y - 1}));
     } else
         TIFFReadTile(this->_file, tile.data(), ix, iy, 0, 0);
+
+    TIFFFreeDirectory(this->_file);
     return tile;
 }
 
 template <typename T>
 Tensor<T> TiffImage::read(Box const& box) const {
-    Tensor<T> result{{box.shape(0), box.shape(1), this->samples}};
-
     auto const& shape = this->levels.at(box.level).shape;
     auto crop = box.fit_to(shape);
     if (!crop.area())
@@ -144,8 +144,7 @@ Tensor<T> TiffImage::read(Box const& box) const {
             auto const tile = this->_read_at<T>(
                 box.level,
                 static_cast<uint32_t>(iy),
-                static_cast<uint32_t>(ix)
-            );
+                static_cast<uint32_t>(ix));
 
             auto t = tile.template view<3>();
             auto ty_begin = std::max(box.min_[0], iy);
@@ -161,8 +160,7 @@ Tensor<T> TiffImage::read(Box const& box) const {
                 std::copy(
                     &t({ty - iy, tx_begin - ix}),
                     &t({ty - iy, tx_end - ix}),
-                    &out({out_y, out_x})
-                );
+                    &out({out_y, out_x}));
         }
     return result;
 }
@@ -178,11 +176,11 @@ auto tiff_open(Path const& path, std::string const& flags) {
 #endif
     if (ptr)
         return make_owner(ptr, TIFFClose);
-        // return std::unique_ptr<TIFF, void (*)(TIFF*)>{ptr, TIFFClose};
     throw std::runtime_error{"Failed to open: " + path.generic_string()};
 }
 
-File::File(Path const& path, std::string const& flags) : _ptr{tiff_open(path, flags)} {}
+File::File(Path const& path, std::string const& flags)
+  : _ptr{tiff_open(path, flags)} { }
 
 uint32_t File::position(uint32_t iy, uint32_t ix) const noexcept {
     return TIFFComputeTile(*this, ix, iy, 0, 0);
@@ -191,7 +189,8 @@ uint32_t File::position(uint32_t iy, uint32_t ix) const noexcept {
 uint32_t File::tiles() const noexcept { return TIFFNumberOfTiles(*this); }
 
 DType _get_dtype(File const& f) {
-    auto dtype = f.try_get<uint16_t>(TIFFTAG_SAMPLEFORMAT).value_or(SAMPLEFORMAT_UINT);
+    auto dtype = f.try_get<uint16_t>(TIFFTAG_SAMPLEFORMAT)
+                     .value_or(SAMPLEFORMAT_UINT);
     if (dtype != SAMPLEFORMAT_UINT && dtype != SAMPLEFORMAT_IEEEFP)
         throw std::runtime_error{"Unsupported data type"};
 
@@ -199,7 +198,7 @@ DType _get_dtype(File const& f) {
     auto const is_compatible = [dtype, bitdepth](auto v) -> bool {
         if (bitdepth != sizeof(v) * 8)
             return false;
-        if constexpr(std::is_unsigned_v<decltype(v)>)
+        if constexpr (std::is_unsigned_v<decltype(v)>)
             return dtype == SAMPLEFORMAT_UINT;
         else
             return dtype == SAMPLEFORMAT_IEEEFP;
@@ -207,7 +206,8 @@ DType _get_dtype(File const& f) {
     auto opt = make_variant_if(is_compatible, DType{});
     if (opt)
         return opt.value();
-    throw std::runtime_error{"Unsupported bitdepth " + std::to_string(bitdepth)};
+    throw std::runtime_error{
+        "Unsupported bitdepth " + std::to_string(bitdepth)};
 }
 
 Size _get_samples(File const& f) {
@@ -223,7 +223,8 @@ Size _get_samples(File const& f) {
         auto samples = f.get<uint16_t>(TIFFTAG_SAMPLESPERPIXEL);
         if (samples == 3 || samples == 4)
             return samples;
-        throw std::runtime_error{"Unsupported sample count: " + std::to_string(samples)};
+        throw std::runtime_error{
+            "Unsupported sample count: " + std::to_string(samples)};
     }
     case PHOTOMETRIC_YCBCR:
         return 4;
@@ -244,14 +245,14 @@ auto _read_pyramid(File const& f, Size samples) {
         TIFFSetDirectory(f, level);
         if (!TIFFIsTiled(f))
             continue;
-        levels[level] = {
-            {f.get<uint32_t>(TIFFTAG_IMAGELENGTH),
-             f.get<uint32_t>(TIFFTAG_IMAGEWIDTH),
-             samples},
-            {f.get<uint32_t>(TIFFTAG_TILELENGTH),
-             f.get<uint32_t>(TIFFTAG_TILEWIDTH),
-             samples}
-        };
+        levels[level]
+            = {{f.get<uint32_t>(TIFFTAG_IMAGELENGTH),
+                f.get<uint32_t>(TIFFTAG_IMAGEWIDTH),
+                samples},
+               {f.get<uint32_t>(TIFFTAG_TILELENGTH),
+                f.get<uint32_t>(TIFFTAG_TILEWIDTH),
+                samples}};
+        TIFFFreeDirectory(f);
     }
     TIFFSetDirectory(f, 0);
     return levels;
@@ -268,8 +269,8 @@ std::unique_ptr<Image> TiffImage::make_this(Path const& path) {
     if (c_descr) {
         std::string descr{c_descr.value()};
         if (descr.find("DICOM") != std::string::npos
-                || descr.find("xml") != std::string::npos
-                || descr.find("XML") != std::string::npos)
+            || descr.find("xml") != std::string::npos
+            || descr.find("XML") != std::string::npos)
             throw std::runtime_error{"Unsupported format: " + descr};
     }
     if (!TIFFIsTiled(file))
@@ -286,9 +287,12 @@ std::unique_ptr<Image> TiffImage::make_this(Path const& path) {
     };
 
     return std::make_unique<TiffImage>(
-        std::move(file), codec,
-        std::move(dtype), std::move(samples), std::move(levels), std::move(spacing)
-    );
+        std::move(file),
+        codec,
+        std::move(dtype),
+        std::move(samples),
+        std::move(levels),
+        std::move(spacing));
 }
 
 } // namespace ts::tiff

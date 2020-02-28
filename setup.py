@@ -25,12 +25,16 @@ class BinaryDistribution(setuptools.Distribution):
 def initialize(self, *, wrapped=None):
     wrapped(self)
     self.compile_options = [
-        '-nologo', '-DNDEBUG', '-W4', '-MD', '-std:c++latest',
+        '-nologo',
+        '-DNDEBUG',
+        '-W4',
+        '-MD',
+        '-std:c++latest',
         '-O2',  # maximize speed
     ]
     self.ldflags_shared.clear()
-    self.ldflags_shared.extend([
-        '-nologo', '-INCREMENTAL:NO', '-DLL', '-MANIFEST:NO'])
+    self.ldflags_shared.extend(
+        ['-nologo', '-INCREMENTAL:NO', '-DLL', '-MANIFEST:NO'])
 
 
 def compile_(self, sources, wrapped=None, **kwargs):
@@ -54,21 +58,20 @@ class PyBindInclude:
 
 class BuildExt(build_ext):
     """A custom build extension for adding compiler-specific options."""
-
     def build_extensions(self):
         options = {
-            'unix': (
-                [f'-DVERSION_INFO="{self.distribution.get_version()}"',
-                 '-std=c++2a',
-                 '-fvisibility=hidden',
-                 '-O3'],
-                ['-Wl,-strip-all'],
-                {'compile': compile_}),
-            'msvc': (
-                [f'-DVERSION_INFO=\\"{self.distribution.get_version()}\\"'],
-                [],
-                {'compile': compile_, 'initialize': initialize}
-            )
+            'unix': ([
+                f'-DVERSION_INFO="{self.distribution.get_version()}"',
+                '-std=c++2a', '-fvisibility=hidden', '-O3'
+            ], ['-Wl,-strip-all'], {
+                'compile': compile_
+            }),
+            'msvc': ([
+                f'-DVERSION_INFO=\\"{self.distribution.get_version()}\\"'
+            ], [], {
+                'compile': compile_,
+                'initialize': initialize
+            })
         }
         option = options.get(self.compiler.compiler_type)
         if option is None:
@@ -100,7 +103,7 @@ setuptools.setup(
     ext_modules=[
         setuptools.Extension(
             PACKAGE,
-            [*map(str, Path(__file__).parent.glob(f'{PACKAGE}/*.cpp'))],
+            [str(p) for p in Path(__file__).parent.glob(f'{PACKAGE}/*.cpp')],
             include_dirs=[
                 PyBindInclude(user=True),
                 f'./{PACKAGE}',
@@ -108,8 +111,7 @@ setuptools.setup(
             ],
             library_dirs=['__dependencies__/lib'],
             libraries=LIBRARIES,
-            language='c++'
-        ),
+            language='c++'),
     ],
     package_data={
         '': ['*.dll', '*.pyd'] if os.name == 'nt' else ['*.so'],

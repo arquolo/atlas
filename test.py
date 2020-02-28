@@ -3,7 +3,8 @@ from pathlib import Path
 
 import glow
 import numpy as np
-import torchslide as ts
+# import torchslide as ts
+import torchslide.ctyped as ts
 from matplotlib import pyplot as P
 
 
@@ -17,7 +18,8 @@ def read_open(scale, filename):
     h, w, *_ = image.shape
     # return scale, image[-1000:h + 1000 :scale, -1000:w + 1000 :scale]
     # return scale, image[int(h * 0.25) : int(h * 0.75) :scale, int(w * 0.25) : int(w * 0.75) :scale]
-    return scale, image[int(h * -.1):int(h * 1.1):scale, int(w * -.1):int(w * 1.1):scale]
+    return scale, image[int(h * -.1):int(h * 1.1):scale,
+                        int(w * -.1):int(w * 1.1):scale]
 
 
 def show(tile, scale):
@@ -28,7 +30,7 @@ def show(tile, scale):
     P.show()
 
 
-print(f'Version: {ts.torchslide.__version__}')
+# print(f'Version: {ts.torchslide.__version__}')
 
 n = 1  # 25
 for p in sorted(Path('..').glob('*.svs')):
@@ -37,11 +39,11 @@ for p in sorted(Path('..').glob('*.svs')):
 
     try:
         image = ts.Image(filename)
-        print(image.spacing)
+        # print(f'  spacing: {image.spacing}')
     except RuntimeError as exc:
         print(f'Dead: {exc!r}')
         continue
-    print(image.shape, image.scales)
+    print(f'  shape: {image.shape}, scales: {image.scales}')
 
     scales = image.scales
     scales = [
@@ -57,5 +59,5 @@ for p in sorted(Path('..').glob('*.svs')):
         tiles = glow.mapped(partial(read_open, filename=filename), scales * n)
         tiles = dict(tiles)
 
-    for scale, tile in tiles.items():
-        show(tile, scale)
+    # for scale, tile in tiles.items():
+    #     show(tile, scale)

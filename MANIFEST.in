@@ -1,4 +1,2 @@
 graft torchslide
-
-global-exclude *.py[cdo]
-global-exclude *.dll
+global-exclude *.py[cdo] __pycache__ *.dll
